@@ -6,7 +6,6 @@ import paginationFactory from "react-bootstrap-table2-paginator";
 import * as XLSX from "xlsx";
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-
 function App() {
   const [files, setFiles] = useState([]);
   const [tableData, setTableData] = useState([]);
@@ -14,7 +13,6 @@ function App() {
   const [error, setError] = useState("");
   const [serialNo, setSerialNo] = useState(1);
 
-  
   useEffect(() => {
     axios
       .get("http://localhost:3001/api/fetch-files")
@@ -29,101 +27,115 @@ function App() {
         setLoading(false);
       });
   }, []);
+
   const handleFileClick = (fileId) => {
     axios
-      // Inside handleFileClick, replace this part:
+      .get(`http://localhost:3001/api/fetch-sheets/${fileId}`)
+      .then((response) => {
+        const sheetData = response.data;
+        const sheetNames = Object.keys(sheetData);
+        console.log("📄 Sheet Names:", sheetNames);
 
-.get(`http://localhost:3001/api/fetch-sheets/${fileId}`)
-.then((response) => {
-  const sheetData = response.data;
-  const sheetNames = Object.keys(sheetData);
-  console.log("📄 Sheet Names:", sheetNames);
+        const budgetSheetName =
+          sheetNames.includes("clientBudget")
+            ? "clientBudget"
+            : sheetNames.includes("internal budget")
+            ? "Internal Budget"
+            : null;
 
-  const budgetSheetName =
-    sheetNames.includes("Study Budget")
-      ? "Study Budget"
-      : sheetNames.includes("Internal Budget")
-      ? "Internal Budget"
-      : null;
+        const specsSheetName = sheetNames.includes("studySpecs")
+          ? "studySpecs"
+          : null;
 
-  const specsSheetName = sheetNames.includes("Study Specs")
-    ? "Study Specs"
-    : null;
+        if (!budgetSheetName) {
+          setError("⚠️ Neither 'Study Budget' nor 'Internal Budget' sheet found.");
+          return;
+        }
 
-  if (!budgetSheetName) {
-    setError("⚠️ Neither 'Study Budget' nor 'Internal Budget' sheet found.");
-    return;
-  }
+        if (!specsSheetName) {
+          setError("⚠️ 'Study Specs' sheet not found.");
+          return;
+        }
 
-  if (!specsSheetName) {
-    setError("⚠️ 'Study Specs' sheet not found.");
-    return;
-  }
+        const budgetSheet = sheetData[budgetSheetName];
+        const studySpecsSheet = sheetData[specsSheetName];
 
-  const budgetSheet = sheetData[budgetSheetName];
-  const studySpecsSheet = sheetData[specsSheetName];
+        if (budgetSheet.length < 14) {
+          setError(`⚠️ '${budgetSheetName}' sheet is too short.`);
+          return;
+        }
 
-  if (budgetSheet.length < 14) {
-    setError(`⚠️ '${budgetSheetName}' sheet is too short.`);
-    return;
-  }
+        const headerRowIndex = budgetSheet.findIndex((row) =>
+          row.some((cell) => (cell || "").toString().trim().toLowerCase() === "ora task?")
+        );
 
-  const headerRowIndex = 1;
-  const headers = budgetSheet[headerRowIndex].map((cell) =>
-    cell && typeof cell === "object" && cell.result
-      ? cell.result.toString().trim()
-      : (cell || "").toString().trim()
-  );
+        if (headerRowIndex === -1) {
+          setError("❌ Could not find the header row with 'Ora Task?'");
+          return;
+        }
 
-  const rows = budgetSheet.slice(headerRowIndex + 1);
+        const headers = budgetSheet[headerRowIndex].map((cell) =>
+          (cell || "").toString().trim()
+        );
 
-  const getColIndex = (label) =>
-    headers.findIndex(
-      (h) => h?.toString().trim().toLowerCase() === label.toLowerCase()
-    );
+        const rows = budgetSheet.slice(headerRowIndex + 1);
 
-  const colIndex = {
-    oraTask: getColIndex("Ora Task?"),
-    service: getColIndex("Service"),
-    units: getColIndex("# Units"),
-    hrsPerUnit: getColIndex("Hrs per Unit"),
-    totalHrs: getColIndex("Total Hrs"),
-    resource: getColIndex("Resource"),
-    phase: getColIndex("Phase"),
+        const getColIndex = (label) =>
+          headers.findIndex(
+            (h) => h?.toString().trim().toLowerCase() === label.toLowerCase()
+          );
+
+        const colIndex = {
+          oraTask: getColIndex("Ora Task?"),
+          service: getColIndex("Service"),
+          units: getColIndex("Units"),
+          hrsPerUnit: getColIndex("Hrs per Unit"),
+          totalHrs: getColIndex("Total Hrs"),
+          resource: getColIndex("Resource"),
+          phase: getColIndex("Phase"),
+        };
+
+        const missingCols = Object.entries(colIndex)
+          .filter(([_, idx]) => idx === -1)
+          .map(([key]) => key);
+
+        if (missingCols.length > 0) {
+          setError(`❌ Missing columns: ${missingCols.join(", ")}`);
+          return;
+        }
+
+        const protocol = String(studySpecsSheet?.[3]?.[1] || "").trim();
+
+        const safeValue = (val) =>
+          typeof val === "object" && val !== null
+            ? val.result || val.v || ""
+            : val || "";
+
+        const newRows = rows
+          .filter(
+            (row) =>
+              (row?.[colIndex.oraTask]?.toString().trim().toLowerCase() || "") === "yes"
+          )
+          .map((row, index) => ({
+            serialNo: serialNo + index,
+            Protocol: safeValue(protocol),
+            Service: safeValue(row[colIndex.service]),
+            Units: safeValue(row[colIndex.units]),
+            HrsPerUnit: safeValue(row[colIndex.hrsPerUnit]),
+            TotalHrs: safeValue(row[colIndex.totalHrs]),
+            Resource: safeValue(row[colIndex.resource]),
+            Phase: safeValue(row[colIndex.phase]),
+          }));
+
+        setSerialNo((prev) => prev + newRows.length);
+        setTableData((prevData) => [...prevData, ...newRows]);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load file data");
+      });
   };
 
-  const missingCols = Object.entries(colIndex)
-    .filter(([_, idx]) => idx === -1)
-    .map(([key]) => key);
-
-  if (missingCols.length > 0) {
-    setError(`❌ Missing columns: ${missingCols.join(", ")}`);
-    return;
-  }
-
-  const protocol = (studySpecsSheet?.[3]?.[1] || "").trim();
-
-  const newRows = rows
-    .filter(
-      (row) =>
-        row?.[colIndex.oraTask]?.toString().trim().toLowerCase() === "yes"
-    )
-    .map((row, index) => ({
-      serialNo: serialNo + index,
-      Protocol: protocol,
-      Service: row[colIndex.service] || "",
-      Units: row[colIndex.units] || "",
-      HrsPerUnit: row[colIndex.hrsPerUnit] || "",
-      TotalHrs: row[colIndex.totalHrs] || "",
-      Resource: row[colIndex.resource] || "",
-      Phase: row[colIndex.phase] || "",
-    }));
-
-  setSerialNo((prev) => prev + newRows.length);
-  setTableData((prevData) => [...prevData, ...newRows]);
-})
-  }
-  
   const columns = [
     { dataField: "serialNo", text: "S. No" },
     { dataField: "Protocol", text: "Protocol" },
@@ -144,7 +156,6 @@ function App() {
 
   if (loading) return <p>Loading files...</p>;
   if (error) return <p>{error}</p>;
-
   return (
     <Container fluid>
       <Row>
