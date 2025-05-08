@@ -4,12 +4,19 @@ const ExcelJS = require("exceljs");
 const cors = require("cors");
 require("dotenv").config();
 const getAccessToken = require("./auth");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 const app = express();
 const PORT = 3001;
 
 app.use(cors());
 
+const siteId = process.env.SITE_ID;
+const driveId = process.env.DRIVE_ID;
+const activeProjectsId = process.env.ACTIVEPROJECTS_ID
+const anteriorFolderId = process.env.ANTERIORFOLDER_ID
 // ------------------- NEW ENDPOINT -------------------
 // async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles) {
 //   const res = await axios.get(
@@ -50,12 +57,12 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
     `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-
+  console.log("response", res.data.value)
   for (const item of res.data.value) {
     // Check if we have reached the limit of files
-    if (matchingFiles.length >= fileLimit) {
-      break;
-    }
+    // if (matchingFiles.length >= fileLimit) {
+    //   break;
+    // }
 
     if (item.folder) {
       console.log(`Entering folder: ${item.name}`);
@@ -71,12 +78,25 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
         if (fields.Current_Version === true && fields.Ora_Study_ID) {
           matchingFiles.push({
             name: item.name,
+            oraStudyId: fields.Ora_Study_ID,
             id: item.id,
             webUrl: item.webUrl,
             currentVersion: fields.Current_Version,
-            oraStudyId: fields.Ora_Study_ID
           });
+        // DOWNLOAD the file
+        const fileResponse = await axios.get(
+          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${item.id}/content`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'arraybuffer',
+          }
+        );
+        const downloadPath = path.join(os.homedir(), "Downloads", item.name);
+        fs.writeFileSync(downloadPath, fileResponse.data);
+        console.log(`Saved to system Downloads folder: ${downloadPath}`);        
         }
+
+        
       } catch (err) {
         console.warn(`Skipping file (no fields found): ${item.name}`);
       }
@@ -89,35 +109,36 @@ app.get("/api/fetch-files", async (req, res) => {
   try {
     const token = await getAccessToken();
 
-    const siteResponse = await axios.get(
-      `https://graph.microsoft.com/v1.0/sites?search=Project Financial Data Hub`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const siteId = siteResponse.data.value[0]?.id;
+    // const siteResponse = await axios.get(
+    //   `https://graph.microsoft.com/v1.0/sites?search=Project Financial Data Hub`,
+    //   { headers: { Authorization: `Bearer ${token}` } }
+    // );
+    // const siteId = siteResponse.data.value[0]?.id;
+    
+    // const driveRes = await axios.get(
+    //   `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+    //   { headers: { Authorization: `Bearer ${token}` } }
+    // );
+    // const driveId = driveRes.data.value.find((d) => d.name === "Documents")?.id;
 
-    const driveRes = await axios.get(
-      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const driveId = driveRes.data.value.find((d) => d.name === "Documents")?.id;
-
-    const rootChildren = await axios.get(
-      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const activeProjects = rootChildren.data.value.find(item => item.name === "1. Active Projects");
-    if (!activeProjects) throw new Error('"1. Active Projects" folder not found');
-
-    const activeChildren = await axios.get(
-      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${activeProjects.id}/children`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const anteriorFolder = activeChildren.data.value.find(item => item.name === "01. Anterior");
-    if (!anteriorFolder) throw new Error('"Anterior" folder not found under "1. Active Projects"');
-
+    // const rootChildren = await axios.get(
+    //   `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children`,
+    //   { headers: { Authorization: `Bearer ${token}` } }
+    // );
+    // const activeProjects = rootChildren.data.value.find(item => item.name === "1. Active Projects");
+    // if (!activeProjects) throw new Error('"1. Active Projects" folder not found');
+    
+    // const activeChildren = await axios.get(
+    //   `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${activeProjects.id}/children`,
+    //   { headers: { Authorization: `Bearer ${token}` } }
+    // );
+    // const anteriorFolder = activeChildren.data.value.find(item => item.name === "01. Anterior");
+    // if (!anteriorFolder) throw new Error('"Anterior" folder not found under "1. Active Projects"');
+    // console.log("siteId",siteId,"driveId", driveId,"activeProjects.id",activeProjects.id, "anteriorFolder.id", anteriorFolder.id)
     const matchingFiles = [];
-    await getValidFilesRecursively(siteId, driveId, anteriorFolder.id, token, matchingFiles);
+    await getValidFilesRecursively(siteId, driveId, anteriorFolderId, token, matchingFiles);
 
+    await exportMatchingFilesToExcel(matchingFiles);
     res.json(matchingFiles);
   } catch (err) {
     console.error(err.response?.data || err.message);
@@ -127,6 +148,28 @@ app.get("/api/fetch-files", async (req, res) => {
   }
 });
 
+async function exportMatchingFilesToExcel(matchingFiles) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Matching Files");
+
+  // Add headers
+  worksheet.columns = [
+    { header: "File Name", key: "name" },
+    { header: "Ora Study ID", key: "oraStudyId", width: 30 },
+    // { header: "File ID", key: "id" },
+    // { header: "Web URL", key: "webUrl", width: 50 },
+    // { header: "Current Version", key: "currentVersion", width: 20 },
+  ];
+
+  // Add rows
+  matchingFiles.forEach(file => worksheet.addRow(file));
+
+  // Save to system Downloads folder
+  const downloadPath = path.join(os.homedir(), "Downloads", "ActiveFilesWithOraStudyID.xlsx");
+  await workbook.xlsx.writeFile(downloadPath);
+
+  console.log(`📥 Excel exported to: ${downloadPath}`);
+}
 // routes/api.js or similar
 app.get("/api/fetch-sheets/:fileId", async (req, res) => {
   const fileId = req.params.fileId;
@@ -135,20 +178,20 @@ app.get("/api/fetch-sheets/:fileId", async (req, res) => {
     const token = await getAccessToken();
 
     // Step 1: Get siteId
-    const siteResponse = await axios.get(
-      `https://graph.microsoft.com/v1.0/sites?search=Project Financial Data Hub`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const siteId = siteResponse.data.value[0]?.id;
+    // const siteResponse = await axios.get(
+    //   `https://graph.microsoft.com/v1.0/sites?search=Project Financial Data Hub`,
+    //   { headers: { Authorization: `Bearer ${token}` } }
+    // );
+    // const siteId = siteResponse.data.value[0]?.id;
 
-    // Step 2: Get driveId
-    const driveRes = await axios.get(
-      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const driveId = driveRes.data.value.find((d) => d.name === "Documents")?.id;
+    // // Step 2: Get driveId
+    // const driveRes = await axios.get(
+    //   `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+    //   { headers: { Authorization: `Bearer ${token}` } }
+    // );
+    // const driveId = driveRes.data.value.find((d) => d.name === "Documents")?.id;
 
-    // Step 3: Get download URL
+    // // Step 3: Get download URL
     const downloadUrlRes = await axios.get(
       `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${fileId}?select=@microsoft.graph.downloadUrl`,
       { headers: { Authorization: `Bearer ${token}` } }
