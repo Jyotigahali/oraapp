@@ -52,21 +52,17 @@ const anteriorFolderId = process.env.ANTERIORFOLDER_ID
 //   }
 // }
 
+let matchedFilesCount = 0
 async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles, fileLimit = 10) {
   const res = await axios.get(
     `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  console.log("response", res.data.value)
+  // console.log("response", res.data.value)
   for (const item of res.data.value) {
-    // Check if we have reached the limit of files
-    // if (matchingFiles.length >= fileLimit) {
-    //   break;
-    // }
-
     if (item.folder) {
       console.log(`Entering folder: ${item.name}`);
-      await getValidFilesRecursively(siteId, driveId, item.id, token, matchingFiles, fileLimit);
+      getValidFilesRecursively(siteId, driveId, item.id, token, matchingFiles, fileLimit);
     } else {
       try {
         const fieldRes = await axios.get(
@@ -76,6 +72,7 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
 
         const fields = fieldRes.data;
         if (fields.Current_Version === true && fields.Ora_Study_ID) {
+          matchedFilesCount++;
           matchingFiles.push({
             name: item.name,
             oraStudyId: fields.Ora_Study_ID,
@@ -94,16 +91,17 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
         const downloadPath = path.join(os.homedir(), "Downloads", item.name);
         fs.writeFileSync(downloadPath, fileResponse.data);
         console.log(`Saved to system Downloads folder: ${downloadPath}`);        
-        }
-
-        
+        }       
       } catch (err) {
         console.warn(`Skipping file (no fields found): ${item.name}`);
       }
     }
   }
+  if(matchingFiles.length === matchedFilesCount){
+    exportMatchingFilesToExcel(matchingFiles);
+  }
+  console.log("maching files length " , matchingFiles.length, matchedFilesCount)
 }
-
 
 app.get("/api/fetch-files", async (req, res) => {
   try {
@@ -137,9 +135,9 @@ app.get("/api/fetch-files", async (req, res) => {
     // console.log("siteId",siteId,"driveId", driveId,"activeProjects.id",activeProjects.id, "anteriorFolder.id", anteriorFolder.id)
     const matchingFiles = [];
     await getValidFilesRecursively(siteId, driveId, anteriorFolderId, token, matchingFiles);
-
-    await exportMatchingFilesToExcel(matchingFiles);
+    // await exportMatchingFilesToExcel(matchingFiles);
     res.json(matchingFiles);
+    console.log("Successfully downloaded active files and matched files")
   } catch (err) {
     console.error(err.response?.data || err.message);
     res.status(500).send("Error fetching SharePoint files");

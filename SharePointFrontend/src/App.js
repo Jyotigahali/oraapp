@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { Table, Button, Spinner, Pagination } from "react-bootstrap";
 import { saveAs } from "file-saver";
 import "bootstrap/dist/css/bootstrap.min.css";
+import axios from "axios";
 
 function App() {
   const [data, setData] = useState([]);
@@ -17,6 +18,23 @@ function App() {
     setData(newData);
     setCurrentPage(1);
   };
+
+  useEffect(() => {
+    axios.get("http://localhost:3001/api/fetch-files")
+      .then((response) => {
+        // setFiles(response.data);
+        console.log("📁 Files:", response.data);
+        setLoading(false);
+        setTimeout(() => {
+          alert("All Active Files saved to system Downloads folder")
+        },5000)
+      })
+      .catch((err) => {
+        console.error(err);
+        // setError("Failed to fetch files");
+        setLoading(false);
+      });
+  }, []);
 
   // ... your handleFileUpload remains the same, just call `updateData(flatData)` instead of `setData(flatData)`
   const handleFileUpload = async (e) => {
