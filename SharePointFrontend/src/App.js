@@ -1,204 +1,234 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { Container, Row, Col, Button, Spinner } from "react-bootstrap";
-import BootstrapTable from "react-bootstrap-table-next";
-import paginationFactory from "react-bootstrap-table2-paginator";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { Table, Button, Spinner, Pagination } from "react-bootstrap";
+import { saveAs } from "file-saver";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 function App() {
-  const [files, setFiles] = useState([]);
-  const [tableData, setTableData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [serialNo, setSerialNo] = useState(1);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dateMap, setDateMap] = useState({});
 
-  useEffect(() => {
-    axios
-      .get("http://localhost:3001/api/fetch-files")
-      .then((response) => {
-        setFiles(response.data);
-        console.log("📁 Files:", response.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to fetch files");
-        setLoading(false);
-      });
-  }, []);
+  const rowsPerPage = 100; // You can change this to 25, 50, etc.
 
-  const handleFileClick = (fileId) => {
-    axios
-      .get(`http://localhost:3001/api/fetch-sheets/${fileId}`)
-      .then((response) => {
-        const sheetData = response.data;
-        const sheetNames = Object.keys(sheetData);
-        console.log("📄 Sheet Names:", sheetNames);
+  // After setting `data`, reset page to 1
+  const updateData = (newData) => {
+    setData(newData);
+    setCurrentPage(1);
+  };
 
+  // ... your handleFileUpload remains the same, just call `updateData(flatData)` instead of `setData(flatData)`
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    setLoading(true);
+    const allData = [];
+
+    for (const file of files) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+
+        const sheetNames = workbook.SheetNames.map((name) => name.toLowerCase());
         const budgetSheetName =
-          sheetNames.includes("clientBudget")
-            ? "clientBudget"
-            : sheetNames.includes("internal budget")
-            ? "Internal Budget"
-            : null;
+          sheetNames.find((s) => s.includes("study budget")) ||
+          sheetNames.find((s) => s.includes("internal budget"));
+        const specsSheetName = sheetNames.find((s) => s.includes("study specs"));
 
-        const specsSheetName = sheetNames.includes("studySpecs")
-          ? "studySpecs"
-          : null;
-
-        if (!budgetSheetName) {
-          setError("⚠️ Neither 'Study Budget' nor 'Internal Budget' sheet found.");
-          return;
+        if (!budgetSheetName || !specsSheetName) {
+          console.warn(`Missing expected sheets in file: ${file.name}`);
+          continue;
         }
 
-        if (!specsSheetName) {
-          setError("⚠️ 'Study Specs' sheet not found.");
-          return;
-        }
+        const budgetSheet = workbook.Sheets[workbook.SheetNames.find(name =>
+          name.toLowerCase() === budgetSheetName)];
+        const specsSheet = workbook.Sheets[workbook.SheetNames.find(name =>
+          name.toLowerCase() === specsSheetName)];
 
-        const budgetSheet = sheetData[budgetSheetName];
-        const studySpecsSheet = sheetData[specsSheetName];
-
-        if (budgetSheet.length < 14) {
-          setError(`⚠️ '${budgetSheetName}' sheet is too short.`);
-          return;
-        }
-
-        const headerRowIndex = budgetSheet.findIndex((row) =>
-          row.some((cell) => (cell || "").toString().trim().toLowerCase() === "ora task?")
+        const budgetJson = XLSX.utils.sheet_to_json(budgetSheet, { defval: "" });
+        const filteredBudget = budgetJson.filter(
+          (row) => (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes"
         );
 
-        if (headerRowIndex === -1) {
-          setError("❌ Could not find the header row with 'Ora Task?'");
-          return;
-        }
+        const specsRange = XLSX.utils.sheet_to_json(specsSheet, {
+          header: 1,
+          defval: "",
+        });
 
-        const headers = budgetSheet[headerRowIndex].map((cell) =>
-          (cell || "").toString().trim()
+        const protocolRow = specsRange[3]; // 4th row (0-indexed)
+        const protocolIndex = protocolRow?.findIndex((cell) =>
+          (cell || "").toString().toLowerCase().includes("protocol")
         );
+        const protocolValue = protocolIndex >= 0 ? protocolRow[protocolIndex + 1] : "N/A";
 
-        const rows = budgetSheet.slice(headerRowIndex + 1);
+        filteredBudget.forEach((row, index) => {
+          allData.push({
+            slno: allData.length + 1,
+            protocol: protocolValue,
+            service: row["Service"] || "",
+            units: row["# Units"] || "",
+            hrsPerUnit: row["Hrs per Unit"] || "",
+            totalHrs: row["Total Hrs"] || "",
+            resource: row["Resource"] || "",
+            phase: row["Phase"] || "",
+          });
+        });
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+      }
+    }
 
-        const getColIndex = (label) =>
-          headers.findIndex(
-            (h) => h?.toString().trim().toLowerCase() === label.toLowerCase()
-          );
-
-        const colIndex = {
-          oraTask: getColIndex("Ora Task?"),
-          service: getColIndex("Service"),
-          units: getColIndex("Units"),
-          hrsPerUnit: getColIndex("Hrs per Unit"),
-          totalHrs: getColIndex("Total Hrs"),
-          resource: getColIndex("Resource"),
-          phase: getColIndex("Phase"),
-        };
-
-        const missingCols = Object.entries(colIndex)
-          .filter(([_, idx]) => idx === -1)
-          .map(([key]) => key);
-
-        if (missingCols.length > 0) {
-          setError(`❌ Missing columns: ${missingCols.join(", ")}`);
-          return;
-        }
-
-        const protocol = String(studySpecsSheet?.[3]?.[1] || "").trim();
-
-        const safeValue = (val) =>
-          typeof val === "object" && val !== null
-            ? val.result || val.v || ""
-            : val || "";
-
-        const newRows = rows
-          .filter(
-            (row) =>
-              (row?.[colIndex.oraTask]?.toString().trim().toLowerCase() || "") === "yes"
-          )
-          .map((row, index) => ({
-            serialNo: serialNo + index,
-            Protocol: safeValue(protocol),
-            Service: safeValue(row[colIndex.service]),
-            Units: safeValue(row[colIndex.units]),
-            HrsPerUnit: safeValue(row[colIndex.hrsPerUnit]),
-            TotalHrs: safeValue(row[colIndex.totalHrs]),
-            Resource: safeValue(row[colIndex.resource]),
-            Phase: safeValue(row[colIndex.phase]),
-          }));
-
-        setSerialNo((prev) => prev + newRows.length);
-        setTableData((prevData) => [...prevData, ...newRows]);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to load file data");
-      });
+    updateData(allData); // This will set data and reset page to 1
+    setLoading(false);
   };
 
-  const columns = [
-    { dataField: "serialNo", text: "S. No" },
-    { dataField: "Protocol", text: "Protocol" },
-    { dataField: "Service", text: "Service" },
-    { dataField: "Units", text: "# Units" },
-    { dataField: "HrsPerUnit", text: "Hrs per Unit" },
-    { dataField: "TotalHrs", text: "Total Hrs" },
-    { dataField: "Resource", text: "Resource" },
-    { dataField: "Phase", text: "Phase" },
-  ];
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = data.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(data.length / rowsPerPage);
 
-  const handleExport = () => {
-    const ws = XLSX.utils.json_to_sheet(tableData);
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const exportToCSV = () => {
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    XLSX.writeFile(wb, "exported_data.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Export");
+    const wbout = XLSX.write(wb, { bookType: "csv", type: "array" });
+    saveAs(new Blob([wbout], { type: "text/csv;charset=utf-8;" }), "export.csv");
   };
 
-  if (loading) return <p>Loading files...</p>;
-  if (error) return <p>{error}</p>;
-  return (
-    <Container fluid>
-      <Row>
-        <Col xs={2} className=" vh-100 p-4">
-          <h5>SharePoint Files</h5>
-          <ul style={{ listStyleType: "none", padding: 10 }}>
-            {files.map((file) => (
-              <li key={file.id} className="mb-2">
-                <Button variant="outline-primary" size="sm" onClick={() => handleFileClick(file.id)}>
-                 Name : {file.name} <br/>
-                 id: {file.id}<br/>
-                 Study ID: {file.oraStudyId}
-                  
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </Col>
+  const handleMilestoneUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        <Col xs={10} className="p-6">
-          {/* <h3>Aggregated Client Budget Data</h3> */}
-          {tableData.length > 0 ? (
-            <>
-              <Button onClick={handleExport} className="btn btn-success mb-3">
-                Export to Excel
-              </Button>
-              <BootstrapTable
-                keyField="serialNo"
-                data={tableData}
-                columns={columns}
-                bootstrap4
-                striped
-                hover
-                condensed
-                pagination={paginationFactory({ sizePerPage: 25 })}
-              />
-            </>
-          ) : (
-            <p>No data loaded. Click a file to load its budget data.</p>
-          )}
-        </Col>
-      </Row>
-    </Container>
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      // Normalize keys
+      const rows = json.map((row) => ({
+        type: row["Milestone Type"] || row["Milestone type"] || "",
+        start: row["Planned Start Date"] || row["Planned start date"] || "",
+        end: row["Planned Finish Date"] || row["Planned finish date"] || "",
+      })).filter(r => r.type && r.start && r.end);
+
+      // Parse valid date strings
+      const allStartDates = rows.map(r => new Date(r.start)).filter(d => !isNaN(d));
+      const allEndDates = rows.map(r => new Date(r.end)).filter(d => !isNaN(d));
+
+      const earliestStart = new Date(Math.min(...allStartDates));
+      const latestEnd = new Date(Math.max(...allEndDates));
+
+      const map = {};
+
+      for (const row of rows) {
+        const key = row.type.toLowerCase().trim();
+        if (!map[key]) {
+          map[key] = {
+            start: row.start,
+            end: row.end,
+          };
+        }
+      }
+
+      // Inject new date columns into your data
+      const newData = data.map((row) => {
+        const key = row.phase?.toLowerCase()?.trim();
+        const match = map[key];
+        return {
+          ...row,
+          plannedStart: match?.start || earliestStart.toISOString().split("T")[0],
+          plannedEnd: match?.end || latestEnd.toISOString().split("T")[0],
+        };
+      });
+
+      setDateMap(map);  // Optional, in case you want to reuse later
+      updateData(newData); // Reset to page 1
+    } catch (err) {
+      console.error("Error parsing milestone file:", err);
+    }
+  };
+
+
+  return (
+    <div className="container mt-4">
+      <h3>Import Excel Files</h3>
+      <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
+      {loading && <Spinner animation="border" className="mt-3" />}
+      <div className="mt-3">
+        <label><strong>Upload Milestone File</strong></label>
+        <input type="file" accept=".xlsx,.xls" onChange={handleMilestoneUpload} />
+      </div>
+
+
+      {data.length > 0 && !loading && (
+        <>
+          <Button className="my-3" onClick={exportToCSV}>
+            Export as CSV
+          </Button>
+
+          <Table striped bordered hover>
+            <thead>
+              <tr>
+                <th>Sl. No</th>
+                <th>Protocol</th>
+                <th>Service</th>
+                <th># Units</th>
+                <th>Hrs per Unit</th>
+                <th>Total Hrs</th>
+                <th>Resource</th>
+                <th>Phase</th>
+                <th>Planned Start Date</th>
+                <th>Planned Finish Date</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {currentRows.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.slno}</td>
+                  <td>{row.protocol}</td>
+                  <td>{row.service}</td>
+                  <td>{row.units}</td>
+                  <td>{row.hrsPerUnit}</td>
+                  <td>{row.totalHrs}</td>
+                  <td>{row.resource}</td>
+                  <td>{row.phase}</td>
+                  <td>{row.plannedStart || ""}</td>
+                  <td>{row.plannedEnd || ""}</td>
+                </tr>
+              ))}
+            </tbody>
+
+          </Table>
+
+          <Pagination>
+            <Pagination.First disabled={currentPage === 1} onClick={() => handlePageChange(1)} />
+            <Pagination.Prev disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)} />
+            {[...Array(totalPages).keys()].map((number) => (
+              <Pagination.Item
+                key={number + 1}
+                active={number + 1 === currentPage}
+                onClick={() => handlePageChange(number + 1)}
+              >
+                {number + 1}
+              </Pagination.Item>
+            ))}
+            <Pagination.Next disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)} />
+            <Pagination.Last disabled={currentPage === totalPages} onClick={() => handlePageChange(totalPages)} />
+          </Pagination>
+        </>
+      )}
+
+      {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
+    </div>
   );
 }
 
