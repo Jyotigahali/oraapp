@@ -9,16 +9,19 @@ function App() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [dateMap, setDateMap] = useState({});
+  //const [dateMap, setDateMap] = useState({});
+  const [studyMilestones, setStudyMilestones] = useState([]); // New state for milestones
+  const [phaseTable, setPhaseTable] = useState([]); // New state for phase table
+  const [studyData, setStudyData] = useState([]);
 
   const rowsPerPage = 100; // You can change this to 25, 50, etc.
 
   // After setting `data`, reset page to 1
   const updateData = (newData) => {
+    console.log(newData);
     setData(newData);
     setCurrentPage(1);
   };
-
   useEffect(() => {
     axios.get("http://localhost:3001/api/fetch-files")
       .then((response) => {
@@ -27,7 +30,7 @@ function App() {
         setLoading(false);
         setTimeout(() => {
           alert("All Active Files saved to system Downloads folder")
-        },5000)
+        }, 5000)
       })
       .catch((err) => {
         console.error(err);
@@ -45,6 +48,15 @@ function App() {
     const allData = [];
 
     for (const file of files) {
+      console.log(`Processing file: ${file.name}`);
+      console.log('setStudyData', studyData);
+
+      // Lookup Ora Study ID from studyData using file name
+      const studyMatch = studyData.find(
+        (s) => (s["File Name"] || "").trim().toLowerCase() === file.name.trim().toLowerCase()
+      );
+      const oraStudyId = studyMatch ? studyMatch["Ora Study ID"] : "N/A";
+
       try {
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "buffer" });
@@ -66,9 +78,15 @@ function App() {
           name.toLowerCase() === specsSheetName)];
 
         const budgetJson = XLSX.utils.sheet_to_json(budgetSheet, { defval: "" });
-        const filteredBudget = budgetJson.filter(
-          (row) => (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes"
-        );
+
+
+        const filteredBudget = budgetJson.filter((row) => {
+          const oraTask = (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes";
+          const totalHrs = parseFloat(row["Total Hrs"]);
+          return oraTask && !isNaN(totalHrs) && totalHrs > 0;
+        });
+
+
 
         const specsRange = XLSX.utils.sheet_to_json(specsSheet, {
           header: 1,
@@ -85,8 +103,10 @@ function App() {
           allData.push({
             slno: allData.length + 1,
             protocol: protocolValue,
+            fileName: file.name,
+            oraStudyId: oraStudyId,
             service: row["Service"] || "",
-            units: row["# Units"] || "",
+            units: row["# Units"] || row["Units"] || "",
             hrsPerUnit: row["Hrs per Unit"] || "",
             totalHrs: row["Total Hrs"] || "",
             resource: row["Resource"] || "",
@@ -98,9 +118,11 @@ function App() {
       }
     }
 
-    updateData(allData); // This will set data and reset page to 1
+    console.log(allData); // Final processed data with fileName and oraStudyId
+    updateData(allData);
     setLoading(false);
   };
+
 
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -126,53 +148,101 @@ function App() {
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "buffer" });
-
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-      // Normalize keys
-      const rows = json.map((row) => ({
-        type: row["Milestone Type"] || row["Milestone type"] || "",
-        start: row["Planned Start Date"] || row["Planned start date"] || "",
-        end: row["Planned Finish Date"] || row["Planned finish date"] || "",
-      })).filter(r => r.type && r.start && r.end);
+      const json = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+        cellDates: true,
+      });
 
-      // Parse valid date strings
-      const allStartDates = rows.map(r => new Date(r.start)).filter(d => !isNaN(d));
-      const allEndDates = rows.map(r => new Date(r.end)).filter(d => !isNaN(d));
-
-      const earliestStart = new Date(Math.min(...allStartDates));
-      const latestEnd = new Date(Math.max(...allEndDates));
-
-      const map = {};
-
-      for (const row of rows) {
-        const key = row.type.toLowerCase().trim();
-        if (!map[key]) {
-          map[key] = {
-            start: row.start,
-            end: row.end,
-          };
+      // Excel date parser
+      const parseExcelDate = (value) => {
+        if (typeof value === "number") {
+          const date = XLSX.SSF.parse_date_code(value);
+          if (!date) return "";
+          const iso = new Date(Date.UTC(date.y, date.m - 1, date.d)).toISOString();
+          return iso.split("T")[0];
         }
-      }
+        if (value instanceof Date) {
+          return value.toISOString().split("T")[0];
+        }
+        return "";
+      };
 
-      // Inject new date columns into your data
-      const newData = data.map((row) => {
-        const key = row.phase?.toLowerCase()?.trim();
-        const match = map[key];
+      // Step 1: Parse milestone rows
+      const studyMilestones = json
+        .map((row) => {
+          const study = row["Study"]?.trim() || "";
+          const type = row["Milestone Type"] || row["Milestone type"] || "";
+          const start = parseExcelDate(row["Planned Start Date"] || row["Planned start date"]);
+          const end = parseExcelDate(row["Planned Finish Date"] || row["Planned finish date"]);
+          return { study, type: type.trim(), start, end };
+        })
+        .filter((r) => r.study && r.type && r.start && r.end);
+
+      setStudyMilestones(studyMilestones); // Optional for debugging
+
+      // Step 2: Reference table to match phases
+      const phaseDateReference = [
+        { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
+        { phase: "Counduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
+        { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
+        { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
+        { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
+        { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
+      ];
+
+      // Step 3: Inject plannedStart and plannedEnd into each data row
+      const newDataWithDates = data.map((row) => {
+        const oraStudyId = row.oraStudyId?.trim();
+        const phase = row.phase?.trim();
+
+        const phaseRef = phaseDateReference.find(
+          (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
+        );
+
+        if (!phaseRef) {
+          return { ...row, plannedStart: "", plannedEnd: "" };
+        }
+
+        const { startLabel, endLabel } = phaseRef;
+
+        const startMilestone = studyMilestones.find(
+          (m) => m.study === oraStudyId && m.type === startLabel
+        );
+        const endMilestone = studyMilestones.find(
+          (m) => m.study === oraStudyId && m.type === endLabel
+        );
+
         return {
           ...row,
-          plannedStart: match?.start || earliestStart.toISOString().split("T")[0],
-          plannedEnd: match?.end || latestEnd.toISOString().split("T")[0],
+          plannedStart: startMilestone?.start || "",
+          plannedEnd: endMilestone?.end || "",
         };
       });
 
-      setDateMap(map);  // Optional, in case you want to reuse later
-      updateData(newData); // Reset to page 1
+      updateData(newDataWithDates);
     } catch (err) {
       console.error("Error parsing milestone file:", err);
     }
   };
+
+  const handleStudyUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      setStudyData(jsonData); // <-- Save data to state
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
 
 
   return (
@@ -183,6 +253,10 @@ function App() {
       <div className="mt-3">
         <label><strong>Upload Milestone File</strong></label>
         <input type="file" accept=".xlsx,.xls" onChange={handleMilestoneUpload} />
+      </div>
+      <div className="mt-3">
+        <label><strong>Upload Study File</strong></label>
+        <input type="file" accept=".xlsx,.xls" onChange={handleStudyUpload} />
       </div>
 
 
@@ -197,6 +271,7 @@ function App() {
               <tr>
                 <th>Sl. No</th>
                 <th>Protocol</th>
+                <th>ora Study ID</th>
                 <th>Service</th>
                 <th># Units</th>
                 <th>Hrs per Unit</th>
@@ -213,6 +288,7 @@ function App() {
                 <tr key={idx}>
                   <td>{row.slno}</td>
                   <td>{row.protocol}</td>
+                  <td>{row.oraStudyId}</td>
                   <td>{row.service}</td>
                   <td>{row.units}</td>
                   <td>{row.hrsPerUnit}</td>
