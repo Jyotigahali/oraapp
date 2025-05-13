@@ -11,8 +11,12 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   //const [dateMap, setDateMap] = useState({});
   const [studyMilestones, setStudyMilestones] = useState([]); // New state for milestones
-  const [phaseTable, setPhaseTable] = useState([]); // New state for phase table
+  //const [phaseTable, setPhaseTable] = useState([]); // New state for phase table
   const [studyData, setStudyData] = useState([]);
+  const [studyCountry, setStudyCountry] = useState([]); // New state for study country
+  const [resourceData, setResourceData] = useState([]);
+const [expandedData, setExpandedData] = useState([]);
+
 
   const rowsPerPage = 100; // You can change this to 25, 50, etc.
 
@@ -244,6 +248,69 @@ function App() {
     reader.readAsArrayBuffer(file);
   }
 
+ const handleStudyCountry = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    const dataBuffer = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(dataBuffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+    setStudyCountry(countryTable);
+    console.log("📁 Study Country Data:", countryTable);
+
+    const regionMap = {
+      "NA": ["Canada", "Mexico", "United States"],
+      "MENA": ["Algeria", "Bahrain", "Egypt", "Iran", "Iraq", "Israel", "Jordan", "Kuwait", "Lebanon", "Libya", "Morocco", "Oman", "Palestine", "Qatar", "Saudi Arabia", "Syria", "Tunisia", "United Arab Emirates", "Yemen"],
+      "APAC": ["Afghanistan", "Australia", "Bangladesh", "Bhutan", "Brunei Darussalam", "Cambodia", "China", "Hong Kong (China)", "Macao (China)", "Cook Islands", "Democratic People's Republic of Korea", "Fiji", "India", "Indonesia", "Japan", "Kiribati", "Lao People's Democratic Republic", "Malaysia", "Maldives", "Marshall Islands"],
+      "LATAM": ["Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay", "Venezuela", "Belize", "Costa Rica", "El Salvador", "Guatemala", "Honduras", "Nicaragua", "Panama"],
+      "EU": ["Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"]
+    };
+
+    const updatedRows = [];
+
+    data.forEach((row) => {
+      const { resource = "", oraStudyId = "" } = row;
+      const regionCode = resource.split("-")[1]; // e.g., NA from CTA-NA
+
+      if (regionCode && regionMap[regionCode]) {
+        const countries = regionMap[regionCode];
+
+        const matchingRows = countryTable.filter(entry =>
+          entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+          entry["Site Status"]?.toLowerCase() === "active" &&
+          countries.includes(entry["Study Country"])
+        );
+
+        if (matchingRows.length > 0) {
+          matchingRows.forEach(entry => {
+            updatedRows.push({
+              ...row,
+              country: entry["Study Country"],
+              site: entry["Study Site Number"],
+              revisedDemand: "" // Optional placeholder
+            });
+          });
+        } else {
+          // No matching country row – can optionally add original without change
+        }
+      } else {
+        // Region not found in Resource – can optionally skip or include
+      }
+    });
+
+    updateData(updatedRows);
+    console.log("✅ Updated Data with Countries:", updatedRows);
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+
 
   return (
     <div className="container mt-4">
@@ -253,6 +320,10 @@ function App() {
       <div className="mt-3">
         <label><strong>Upload Milestone File</strong></label>
         <input type="file" accept=".xlsx,.xls" onChange={handleMilestoneUpload} />
+      </div>
+       <div className="mt-3">
+        <label><strong>Upload studty Country</strong></label>
+        <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
       </div>
       <div className="mt-3">
         <label><strong>Upload Study File</strong></label>
@@ -280,6 +351,9 @@ function App() {
                 <th>Phase</th>
                 <th>Planned Start Date</th>
                 <th>Planned Finish Date</th>
+                <th>Country</th>
+                <th>Site</th>
+                <th>Revised Demand</th>
               </tr>
             </thead>
 
@@ -297,6 +371,9 @@ function App() {
                   <td>{row.phase}</td>
                   <td>{row.plannedStart || ""}</td>
                   <td>{row.plannedEnd || ""}</td>
+                  <td>{row.country || ""}</td>
+                  <td>{row.site || ""}</td> 
+
                 </tr>
               ))}
             </tbody>
