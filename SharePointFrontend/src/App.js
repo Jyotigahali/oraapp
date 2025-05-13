@@ -291,6 +291,7 @@ const [expandedData, setExpandedData] = useState([]);
           matchingRows.forEach(entry => {
             updatedRows.push({
               ...row,
+              slno: updatedRows.length+1,
               country: entry["Study Country"],
               site: entry["Study Site Number"],
               revisedDemand: "" // Optional placeholder
