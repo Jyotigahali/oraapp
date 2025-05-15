@@ -15,7 +15,7 @@ function App() {
   const [studyData, setStudyData] = useState([]);
   const [studyCountry, setStudyCountry] = useState([]); // New state for study country
   const [resourceData, setResourceData] = useState([]);
-const [expandedData, setExpandedData] = useState([]);
+  const [expandedData, setExpandedData] = useState([]);
 
 
   const rowsPerPage = 100; // You can change this to 25, 50, etc.
@@ -189,7 +189,7 @@ const [expandedData, setExpandedData] = useState([]);
       // Step 2: Reference table to match phases
       const phaseDateReference = [
         { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
-        { phase: "Counduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
+        { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
         { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
         { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
         { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
@@ -248,7 +248,7 @@ const [expandedData, setExpandedData] = useState([]);
     reader.readAsArrayBuffer(file);
   }
 
- const handleStudyCountry = async (e) => {
+  const handleStudyCountry = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -264,6 +264,7 @@ const [expandedData, setExpandedData] = useState([]);
     setStudyCountry(countryTable);
     console.log("📁 Study Country Data:", countryTable);
 
+    // 🔹 Region code to country mapping
     const regionMap = {
       "NA": ["Canada", "Mexico", "United States"],
       "MENA": ["Algeria", "Bahrain", "Egypt", "Iran", "Iraq", "Israel", "Jordan", "Kuwait", "Lebanon", "Libya", "Morocco", "Oman", "Palestine", "Qatar", "Saudi Arabia", "Syria", "Tunisia", "United Arab Emirates", "Yemen"],
@@ -274,134 +275,168 @@ const [expandedData, setExpandedData] = useState([]);
 
     const updatedRows = [];
 
+    // 🔹 Maps for counting sites
+    const siteCountPerResourceCountry = {}; // key: resource|country → count
+    const totalSiteCountPerResource = {};   // key: resource → total count
+
+    // 🔹 First pass: build the site count maps
     data.forEach((row) => {
       const { resource = "", oraStudyId = "" } = row;
-      const regionCode = resource.split("-")[1]; // e.g., NA from CTA-NA
+      const regionCode = resource.split("-")[1];
+      const regionCountries = regionMap[regionCode];
+      if (!regionCountries) return;
 
-      if (regionCode && regionMap[regionCode]) {
-        const countries = regionMap[regionCode];
+      // 🔍 Filter matching entries from uploaded country table
+      const matchingEntries = countryTable.filter(entry =>
+        entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+        entry["Site Status"]?.toLowerCase() === "active" &&
+        regionCountries.includes(entry["Study Country"])
+      );
 
-        const matchingRows = countryTable.filter(entry =>
-          entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
-          entry["Site Status"]?.toLowerCase() === "active" &&
-          countries.includes(entry["Study Country"])
-        );
+      matchingEntries.forEach(entry => {
+        const country = entry["Study Country"];
+        const resourceCountryKey = `${resource}|||${country}`;
 
-        if (matchingRows.length > 0) {
-          matchingRows.forEach(entry => {
-            updatedRows.push({
-              ...row,
-              slno: updatedRows.length+1,
-              country: entry["Study Country"],
-              site: entry["Study Site Number"],
-              revisedDemand: "" // Optional placeholder
-            });
-          });
-        } else {
-          // No matching country row – can optionally add original without change
-        }
-      } else {
-        // Region not found in Resource – can optionally skip or include
-      }
+        // 🔢 Count how many sites per resource-country
+        siteCountPerResourceCountry[resourceCountryKey] = (siteCountPerResourceCountry[resourceCountryKey] || 0) + 1;
+
+        // 🔢 Count total sites per resource
+        totalSiteCountPerResource[resource] = (totalSiteCountPerResource[resource] || 0) + 1;
+      });
+    });
+
+    // 🔹 Second pass: create updated rows with calculated fields
+    data.forEach((row) => {
+      const { resource = "", oraStudyId = "", totalHrs = 0 } = row;
+      const regionCode = resource.split("-")[1];
+      const regionCountries = regionMap[regionCode];
+      if (!regionCountries) return;
+
+      const matchingEntries = countryTable.filter(entry =>
+        entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+        entry["Site Status"]?.toLowerCase() === "active" &&
+        regionCountries.includes(entry["Study Country"])
+      );
+
+      matchingEntries.forEach(entry => {
+        const country = entry["Study Country"];
+        const siteNumber = entry["Study Site Number"];
+        const resourceCountryKey = `${resource}|||${country}`;
+        const resourcePrefix = resource.split("-")[0];
+
+        const countrySiteCount = siteCountPerResourceCountry[resourceCountryKey] || 0;
+        const totalSiteCount = totalSiteCountPerResource[resource] || 1;
+        const countryDemand = ((countrySiteCount / totalSiteCount) * parseFloat(totalHrs || 0)).toFixed(2);
+
+        updatedRows.push({
+          ...row,
+          slno: updatedRows.length + 1,
+          country: country,
+          site: (resourcePrefix === "CRA" || resourcePrefix === "LCRA") ? siteNumber : undefined,
+          revisedDemand: countrySiteCount,
+          countryDemand
+        });
+      });
     });
 
     updateData(updatedRows);
-    console.log("✅ Updated Data with Countries:", updatedRows);
+    console.log("✅ Final Output with country, site, revisedDemand, countryDemand:", updatedRows);
   };
 
   reader.readAsArrayBuffer(file);
 };
 
 
-  return (
-    <div className="container mt-4">
-      <h3>Import Excel Files</h3>
-      <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
-      {loading && <Spinner animation="border" className="mt-3" />}
-      <div className="mt-3">
-        <label><strong>Upload Milestone File</strong></label>
-        <input type="file" accept=".xlsx,.xls" onChange={handleMilestoneUpload} />
-      </div>
-       <div className="mt-3">
-        <label><strong>Upload studty Country</strong></label>
-        <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
-      </div>
-      <div className="mt-3">
-        <label><strong>Upload Study File</strong></label>
-        <input type="file" accept=".xlsx,.xls" onChange={handleStudyUpload} />
-      </div>
-
-
-      {data.length > 0 && !loading && (
-        <>
-          <Button className="my-3" onClick={exportToCSV}>
-            Export as CSV
-          </Button>
-
-          <Table striped bordered hover>
-            <thead>
-              <tr>
-                <th>Sl. No</th>
-                <th>Protocol</th>
-                <th>ora Study ID</th>
-                <th>Service</th>
-                <th># Units</th>
-                <th>Hrs per Unit</th>
-                <th>Total Hrs</th>
-                <th>Resource</th>
-                <th>Phase</th>
-                <th>Planned Start Date</th>
-                <th>Planned Finish Date</th>
-                <th>Country</th>
-                <th>Site</th>
-                <th>Revised Demand</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {currentRows.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.slno}</td>
-                  <td>{row.protocol}</td>
-                  <td>{row.oraStudyId}</td>
-                  <td>{row.service}</td>
-                  <td>{row.units}</td>
-                  <td>{row.hrsPerUnit}</td>
-                  <td>{row.totalHrs}</td>
-                  <td>{row.resource}</td>
-                  <td>{row.phase}</td>
-                  <td>{row.plannedStart || ""}</td>
-                  <td>{row.plannedEnd || ""}</td>
-                  <td>{row.country || ""}</td>
-                  <td>{row.site || ""}</td> 
-
-                </tr>
-              ))}
-            </tbody>
-
-          </Table>
-
-          <Pagination>
-            <Pagination.First disabled={currentPage === 1} onClick={() => handlePageChange(1)} />
-            <Pagination.Prev disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)} />
-            {[...Array(totalPages).keys()].map((number) => (
-              <Pagination.Item
-                key={number + 1}
-                active={number + 1 === currentPage}
-                onClick={() => handlePageChange(number + 1)}
-              >
-                {number + 1}
-              </Pagination.Item>
-            ))}
-            <Pagination.Next disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)} />
-            <Pagination.Last disabled={currentPage === totalPages} onClick={() => handlePageChange(totalPages)} />
-          </Pagination>
-        </>
-      )}
-
-      {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
+return (
+  <div className="container mt-4">
+    <h3>Import Excel Files</h3>
+    <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
+    {loading && <Spinner animation="border" className="mt-3" />}
+    <div className="mt-3">
+      <label><strong>Upload Milestone File</strong></label>
+      <input type="file" accept=".xlsx,.xls" onChange={handleMilestoneUpload} />
     </div>
-  );
+    <div className="mt-3">
+      <label><strong>Upload studty Country</strong></label>
+      <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
+    </div>
+    <div className="mt-3">
+      <label><strong>Upload Study File</strong></label>
+      <input type="file" accept=".xlsx,.xls" onChange={handleStudyUpload} />
+    </div>
+
+
+    {data.length > 0 && !loading && (
+      <>
+        <Button className="my-3" onClick={exportToCSV}>
+          Export as CSV
+        </Button>
+
+        <Table striped bordered hover>
+          <thead>
+            <tr>
+              <th>Sl. No</th>
+              <th>Protocol</th>
+              <th>ora Study ID</th>
+              <th>Service</th>
+              <th># Units</th>
+              <th>Hrs per Unit</th>
+              <th>Total Hrs</th>
+              <th>Resource</th>
+              <th>Phase</th>
+              <th>Planned Start Date</th>
+              <th>Planned Finish Date</th>
+              <th>Country</th>
+              <th>Site</th>
+              <th>Revised Demand</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {currentRows.map((row, idx) => (
+              <tr key={idx}>
+                <td>{row.slno}</td>
+                <td>{row.protocol}</td>
+                <td>{row.oraStudyId}</td>
+                <td>{row.service}</td>
+                <td>{row.units}</td>
+                <td>{row.hrsPerUnit}</td>
+                <td>{row.totalHrs}</td>
+                <td>{row.resource}</td>
+                <td>{row.phase}</td>
+                <td>{row.plannedStart || ""}</td>
+                <td>{row.plannedEnd || ""}</td>
+                <td>{row.country || ""}</td>
+                <td>{row.site || ""}</td>
+                <td>{row.revisedDemand}</td>
+
+              </tr>
+            ))}
+          </tbody>
+
+        </Table>
+
+        <Pagination>
+          <Pagination.First disabled={currentPage === 1} onClick={() => handlePageChange(1)} />
+          <Pagination.Prev disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)} />
+          {[...Array(totalPages).keys()].map((number) => (
+            <Pagination.Item
+              key={number + 1}
+              active={number + 1 === currentPage}
+              onClick={() => handlePageChange(number + 1)}
+            >
+              {number + 1}
+            </Pagination.Item>
+          ))}
+          <Pagination.Next disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)} />
+          <Pagination.Last disabled={currentPage === totalPages} onClick={() => handlePageChange(totalPages)} />
+        </Pagination>
+      </>
+    )}
+
+    {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
+  </div>
+);
 }
 
 export default App;
