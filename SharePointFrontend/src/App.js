@@ -318,25 +318,63 @@ function App() {
           regionCountries.includes(entry["Study Country"])
         );
 
-        matchingEntries.forEach(entry => {
-          const country = entry["Study Country"];
-          const siteNumber = entry["Study Site Number"];
-          const resourceCountryKey = `${resource}|||${country}`;
+        // 🔹 Maps to count countries per service
+        const serviceCountryOccurrences = {};
+        const uniqueCountriesPerService = {};
+
+        data.forEach(row => {
+          if (!row?.service || !row?.country) return;
+          const { service, country } = row;
+
+          if (!serviceCountryOccurrences[service]) {
+            serviceCountryOccurrences[service] = {};
+          }
+          if (!uniqueCountriesPerService[service]) {
+            uniqueCountriesPerService[service] = new Set();
+          }
+
+          serviceCountryOccurrences[service][country] = (serviceCountryOccurrences[service][country] || 0) + 1;
+          uniqueCountriesPerService[service].add(country);
+        });
+
+        // 🔹 Generate updated rows
+        data.forEach(row => {
+          const { resource = "", oraStudyId = "", totalHrs = 0, service = "", country: rowCountry = "" } = row;
+          const regionCode = resource.split("-")[1];
+          const regionCountries = regionMap[regionCode];
+          if (!regionCountries) return;
+
+          const matchingEntries = countryTable.filter(entry =>
+            entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+            entry["Site Status"]?.toLowerCase() === "active" &&
+            regionCountries.includes(entry["Study Country"])
+          );
+
           const resourcePrefix = resource.split("-")[0];
+          const isCRA = (resourcePrefix === "CRA" || resourcePrefix === "LCRA");
 
-          const countrySiteCount = siteCountPerResourceCountry[resourceCountryKey] || 0;
-          const totalSiteCount = totalSiteCountPerResource[resource] || 1;
-          const countryDemand = ((countrySiteCount / totalSiteCount) * parseFloat(totalHrs || 0)).toFixed(2);
+          matchingEntries.forEach(entry => {
+            const country = entry["Study Country"].trim(); // Trim just in case
+            const siteNumber = entry["Study Site Number"];
+            const resourceCountryKey = `${resource}|||${country}`;
 
-          updatedRows.push({
-            ...row,
-            slno: updatedRows.length + 1,
-            country: country,
-            site: (resourcePrefix === "CRA" || resourcePrefix === "LCRA") ? siteNumber : undefined,
-            revisedDemand: countrySiteCount,
-            countryDemand
+            const countryCount = serviceCountryOccurrences[service]?.[country] || 1;
+            const uniqueCountryCount = uniqueCountriesPerService[service]?.size || 1;
+
+            const countryDemand = ((uniqueCountryCount / countryCount) * parseFloat(totalHrs || 0)).toFixed(2);
+            const countrySiteCount = siteCountPerResourceCountry[resourceCountryKey] || 0;
+
+            updatedRows.push({
+              ...row,
+              slno: updatedRows.length + 1,
+              country: country,
+              site: isCRA ? siteNumber : undefined,
+              revisedDemand: countryDemand,
+              countryDemand
+            });
           });
         });
+
       });
 
       updateData(updatedRows);
@@ -346,67 +384,67 @@ function App() {
     reader.readAsArrayBuffer(file);
   };
   const handleScheduleLevelMilestoneUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
 
-  try {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "buffer" });
 
-    // ✅ Find the correct sheet name
-    const sheetName = workbook.SheetNames.find(name =>
-      name.trim().toLowerCase() === "records_as_of_2025_05_01_edt"
-    );
+      // ✅ Find the correct sheet name
+      const sheetName = workbook.SheetNames.find(name =>
+        name.trim().toLowerCase() === "records_as_of_2025_05_01_edt"
+      );
 
-    if (!sheetName) {
-      alert("Sheet 'records_as_of_2025_05_01_EDT' not found!");
-      return;
-    }
+      if (!sheetName) {
+        alert("Sheet 'records_as_of_2025_05_01_EDT' not found!");
+        return;
+      }
 
-    const worksheet = workbook.Sheets[sheetName];
+      const worksheet = workbook.Sheets[sheetName];
 
-    // ✅ Step 1: Read and clean column headers (trim spaces)
-    const rawMilestoneData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+      // ✅ Step 1: Read and clean column headers (trim spaces)
+      const rawMilestoneData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-    const milestoneData = rawMilestoneData.map(entry => {
-      const cleanedEntry = {};
-      Object.keys(entry).forEach(key => {
-        cleanedEntry[key.trim()] = entry[key]; // removes spaces
+      const milestoneData = rawMilestoneData.map(entry => {
+        const cleanedEntry = {};
+        Object.keys(entry).forEach(key => {
+          cleanedEntry[key.trim()] = entry[key]; // removes spaces
+        });
+        return cleanedEntry;
       });
-      return cleanedEntry;
-    });
 
-    // 🧪 Debug: log keys to see exact column names
-    console.log("📋 Milestone Columns:", Object.keys(milestoneData[0]));
+      // 🧪 Debug: log keys to see exact column names
+      console.log("📋 Milestone Columns:", Object.keys(milestoneData[0]));
 
-    // ✅ Step 2: Build map using "Study Number"
-    const milestoneMap = {};
-    milestoneData.forEach(entry => {
-      const studyNumber = (entry["Study Number"] || "").toString().trim();
-      if (studyNumber) milestoneMap[studyNumber] = entry;
-    });
+      // ✅ Step 2: Build map using "Study Number"
+      const milestoneMap = {};
+      milestoneData.forEach(entry => {
+        const studyNumber = (entry["Study Number"] || "").toString().trim();
+        if (studyNumber) milestoneMap[studyNumber] = entry;
+      });
 
-    // ✅ Step 3: Merge milestone fields into your data
-    const updatedWithMilestones = data.map(row => {
-      const studyId = (row.oraStudyId || "").toString().trim();
-      const match = milestoneMap[studyId];
+      // ✅ Step 3: Merge milestone fields into your data
+      const updatedWithMilestones = data.map(row => {
+        const studyId = (row.oraStudyId || "").toString().trim();
+        const match = milestoneMap[studyId];
 
-      return {
-        ...row,
-        Department: match?.["Department"] || "",
-        Sponsor: match?.["Sponsor"] || "",
-        currentProjectStatus: match?.["Current Project Phase"] || "",
-        Indication: match?.["Indication Picklist"] || "",
-        enrollmentMethod: match?.["Enrollment Method"] || ""
-      };
-    });
+        return {
+          ...row,
+          Department: match?.["Department"] || "",
+          Sponsor: match?.["Sponsor"] || "",
+          currentProjectStatus: match?.["Current Project Phase"] || "",
+          Indication: match?.["Indication Picklist"] || "",
+          enrollmentMethod: match?.["Enrollment Method"] || ""
+        };
+      });
 
-    updateData(updatedWithMilestones);
-    console.log("✅ Updated data with Schedule-Level Milestone columns", updatedWithMilestones);
-  } catch (err) {
-    console.error("❌ Error reading schedule milestone file:", err);
-  }
-};
+      updateData(updatedWithMilestones);
+      console.log("✅ Updated data with Schedule-Level Milestone columns", updatedWithMilestones);
+    } catch (err) {
+      console.error("❌ Error reading schedule milestone file:", err);
+    }
+  };
 
 
 
