@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { Table, Button, Spinner, Pagination } from "react-bootstrap";
-import { saveAs } from "file-saver";
+
 import "bootstrap/dist/css/bootstrap.min.css";
 import axios from "axios";
 import Categories from "./Categories";
@@ -19,7 +19,7 @@ function App() {
   const [expandedData, setExpandedData] = useState([]);
 
 
-  const rowsPerPage = 100; // You can change this to 25, 50, etc.
+ // You can change this to 25, 50, etc.
 
   // After setting `data`, reset page to 1
   const updateData = (newData) => {
@@ -129,22 +129,8 @@ function App() {
   };
 
 
-  const indexOfLastRow = currentPage * rowsPerPage;
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const currentRows = data.slice(indexOfFirstRow, indexOfLastRow);
-  const totalPages = Math.ceil(data.length / rowsPerPage);
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
-
-  const exportToCSV = () => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Export");
-    const wbout = XLSX.write(wb, { bookType: "csv", type: "array" });
-    saveAs(new Blob([wbout], { type: "text/csv;charset=utf-8;" }), "export.csv");
-  };
+ 
 
   const handleMilestoneUpload = async (e) => {
     const file = e.target.files[0];
@@ -432,86 +418,7 @@ function App() {
         <label><strong>Upload Schedule Level Milestone</strong></label>
         <input type="file" accept=".xlsx,.xls" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
-  <Categories currentData={data}  />
-
-      {data.length > 0 && !loading && (
-        <>
-          <Button className="my-3" onClick={exportToCSV}>
-            Export as CSV
-          </Button>
-
-          <Table striped bordered hover>
-            <thead>
-              <tr>
-                <th>Sl. No</th>
-                <th>Protocol</th>
-                <th>ora Study ID</th>
-                <th>Service</th>
-                <th># Units</th>
-                <th>Hrs per Unit</th>
-                <th>Total Hrs</th>
-                <th>Resource</th>
-                <th>Phase</th>
-                <th>Planned Start Date</th>
-                <th>Planned Finish Date</th>
-                <th>Country</th>
-                <th>Site</th>
-                <th>Revised Demand</th>
-                <th>Department</th>
-                <th>Sponsor</th>
-                <th>Current Project Status</th>
-                <th>Indication</th>
-                <th>Enrollment Method</th>
-
-              </tr>
-            </thead>
-
-            <tbody>
-              {currentRows.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.slno}</td>
-                  <td>{row.protocol}</td>
-                  <td>{row.oraStudyId}</td>
-                  <td>{row.service}</td>
-                  <td>{row.units}</td>
-                  <td>{row.hrsPerUnit}</td>
-                  <td>{row.totalHrs}</td>
-                  <td>{row.resource}</td>
-                  <td>{row.phase}</td>
-                  <td>{row.plannedStart || ""}</td>
-                  <td>{row.plannedEnd || ""}</td>
-                  <td>{row.country || ""}</td>
-                  <td>{row.site || ""}</td>
-                  <td>{row.revisedDemand}</td>
-                  <td>{row.Department || ""}</td>
-                  <td>{row.Sponsor || ""}</td>
-                  <td>{row.currentProjectStatus || ""}</td>
-                  <td>{row.Indication || ""}</td>
-                  <td>{row.enrollmentMethod || ""}</td>
-                </tr>
-              ))}
-            </tbody>
-
-          </Table>
-
-          <Pagination>
-            <Pagination.First disabled={currentPage === 1} onClick={() => handlePageChange(1)} />
-            <Pagination.Prev disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)} />
-            {[...Array(totalPages).keys()].map((number) => (
-              <Pagination.Item
-                key={number + 1}
-                active={number + 1 === currentPage}
-                onClick={() => handlePageChange(number + 1)}
-              >
-                {number + 1}
-              </Pagination.Item>
-            ))}
-            <Pagination.Next disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)} />
-            <Pagination.Last disabled={currentPage === totalPages} onClick={() => handlePageChange(totalPages)} />
-          </Pagination>
-        </>
-      )}
-
+  <Categories currentData={data} loading={loading}  currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
   );
