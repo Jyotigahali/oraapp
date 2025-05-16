@@ -223,9 +223,9 @@ function Categories(props) {
         </>
       )}
         </div>}
-        {activeTab === 'region' && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {activeTab === 'country' && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {activeTab === 'tab4' && <div className="tab-pane active">Content for Tab 4</div>}
+        {activeTab === 'region' && ScenerioOne.length > 0 && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
+        {activeTab === 'country' && ScenerioTwo.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
+        {activeTab === 'tab4' && ScenerioThree.length > 0 && <div className="tab-pane active">Content for Tab 4</div>}
       </div>
     </div>
   );
