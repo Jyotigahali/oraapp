@@ -64,7 +64,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       <Button className="m-2" onClick={() => handleExportSchedule(data)}>
             Export as CSV For RM: Schedule
       </Button>
-      <h4>Rolled Up Resource Table</h4>
+      <h4  className="my-2">Rolled Up By {activeTab?.toUpperCase()} </h4>
       <table className="table table-bordered table-striped">
         <thead className="table-light">
           <tr>
