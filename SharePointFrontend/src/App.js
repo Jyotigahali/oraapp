@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
 import { Table, Button, Spinner, Pagination } from "react-bootstrap";
-
 import "bootstrap/dist/css/bootstrap.min.css";
-import axios from "axios";
 import Categories from "./Categories";
 
 function App() {
@@ -19,7 +17,7 @@ function App() {
   const [expandedData, setExpandedData] = useState([]);
 
 
- // You can change this to 25, 50, etc.
+  // You can change this to 25, 50, etc.
 
   // After setting `data`, reset page to 1
   const updateData = (newData) => {
@@ -130,7 +128,7 @@ function App() {
 
 
 
- 
+
 
   const handleMilestoneUpload = async (e) => {
     const file = e.target.files[0];
@@ -251,125 +249,148 @@ function App() {
       setStudyCountry(countryTable);
       console.log("📁 Study Country Data:", countryTable);
 
-      // 🔹 Region code to country mapping
       const regionMap = {
-        "NA": ["Canada", "Mexico", "United States"],
-        "MENA": ["Algeria", "Bahrain", "Egypt", "Iran", "Iraq", "Israel", "Jordan", "Kuwait", "Lebanon", "Libya", "Morocco", "Oman", "Palestine", "Qatar", "Saudi Arabia", "Syria", "Tunisia", "United Arab Emirates", "Yemen"],
-        "APAC": ["Afghanistan", "Australia", "Bangladesh", "Bhutan", "Brunei Darussalam", "Cambodia", "China", "Hong Kong (China)", "Macao (China)", "Cook Islands", "Democratic People's Republic of Korea", "Fiji", "India", "Indonesia", "Japan", "Kiribati", "Lao People's Democratic Republic", "Malaysia", "Maldives", "Marshall Islands"],
-        "LATAM": ["Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay", "Venezuela", "Belize", "Costa Rica", "El Salvador", "Guatemala", "Honduras", "Nicaragua", "Panama"],
-        "EU": ["Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"]
+        NA: ["Canada", "Mexico", "United States"],
+        MENA: ["Algeria", "Bahrain", "Egypt", "Iran", "Iraq", "Israel", "Jordan", "Kuwait", "Lebanon", "Libya", "Morocco", "Oman", "Palestine", "Qatar", "Saudi Arabia", "Syria", "Tunisia", "United Arab Emirates", "Yemen"],
+        APAC: ["Afghanistan", "Australia", "Bangladesh", "Bhutan", "Brunei Darussalam", "Cambodia", "China", "Hong Kong (China)", "Macao (China)", "Cook Islands", "Democratic People's Republic of Korea", "Fiji", "India", "Indonesia", "Japan", "Kiribati", "Lao People's Democratic Republic", "Malaysia", "Maldives", "Marshall Islands"],
+        LATAM: ["Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay", "Venezuela", "Belize", "Costa Rica", "El Salvador", "Guatemala", "Honduras", "Nicaragua", "Panama"],
+        EU: ["Austria", "Belgium", "Bulgaria", "Croatia", "Republic of Cyprus", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden"]
       };
 
-      const updatedRows = [];
+      const dataWithExpandedCountryAndSite = [];
 
-      // 🔹 Maps for counting sites
-      const siteCountPerResourceCountry = {}; // key: resource|country → count
-      const totalSiteCountPerResource = {};   // key: resource → total count
-
-      // 🔹 First pass: build the site count maps
       data.forEach((row) => {
         const { resource = "", oraStudyId = "" } = row;
         const regionCode = resource.split("-")[1];
         const regionCountries = regionMap[regionCode];
-        if (!regionCountries) return;
+        if (!regionCountries) {
+          dataWithExpandedCountryAndSite.push(row);
+          return;
+        }
 
-        // 🔍 Filter matching entries from uploaded country table
         const matchingEntries = countryTable.filter(entry =>
           entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
           entry["Site Status"]?.toLowerCase() === "active" &&
           regionCountries.includes(entry["Study Country"])
         );
 
+        // Count active sites per country
+        const countrySiteMap = {};
         matchingEntries.forEach(entry => {
-          const country = entry["Study Country"];
-          const resourceCountryKey = `${resource}|||${country}`;
-
-          // 🔢 Count how many sites per resource-country
-          siteCountPerResourceCountry[resourceCountryKey] = (siteCountPerResourceCountry[resourceCountryKey] || 0) + 1;
-
-          // 🔢 Count total sites per resource
-          totalSiteCountPerResource[resource] = (totalSiteCountPerResource[resource] || 0) + 1;
-        });
-      });
-
-      // 🔹 Second pass: create updated rows with calculated fields
-      data.forEach((row) => {
-        const { resource = "", oraStudyId = "", totalHrs = 0 } = row;
-        const regionCode = resource.split("-")[1];
-        const regionCountries = regionMap[regionCode];
-        if (!regionCountries) return;
-
-        const matchingEntries = countryTable.filter(entry =>
-          entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
-          entry["Site Status"]?.toLowerCase() === "active" &&
-          regionCountries.includes(entry["Study Country"])
-        );
-
-        // 🔹 Maps to count countries per service
-        const serviceCountryOccurrences = {};
-        const uniqueCountriesPerService = {};
-
-        data.forEach(row => {
-          if (!row?.service || !row?.country) return;
-          const { service, country } = row;
-
-          if (!serviceCountryOccurrences[service]) {
-            serviceCountryOccurrences[service] = {};
+          const country = entry["Study Country"].trim();
+          if (country) {
+            countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
           }
-          if (!uniqueCountriesPerService[service]) {
-            uniqueCountriesPerService[service] = new Set();
-          }
-
-          serviceCountryOccurrences[service][country] = (serviceCountryOccurrences[service][country] || 0) + 1;
-          uniqueCountriesPerService[service].add(country);
         });
 
-        // 🔹 Generate updated rows
-        data.forEach(row => {
-          const { resource = "", oraStudyId = "", totalHrs = 0, service = "", country: rowCountry = "" } = row;
-          const regionCode = resource.split("-")[1];
-          const regionCountries = regionMap[regionCode];
-          if (!regionCountries) return;
+        const countryList = Object.keys(countrySiteMap);
+        const siteCountList = countryList.map(country => countrySiteMap[country]);
 
-          const matchingEntries = countryTable.filter(entry =>
-            entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
-            entry["Site Status"]?.toLowerCase() === "active" &&
-            regionCountries.includes(entry["Study Country"])
-          );
-
-          const resourcePrefix = resource.split("-")[0];
-          const isCRA = (resourcePrefix === "CRA" || resourcePrefix === "LCRA");
-
-          matchingEntries.forEach(entry => {
-            const country = entry["Study Country"].trim(); // Trim just in case
-            const siteNumber = entry["Study Site Number"];
-            const resourceCountryKey = `${resource}|||${country}`;
-
-            const countryCount = serviceCountryOccurrences[service]?.[country] || 1;
-            const uniqueCountryCount = uniqueCountriesPerService[service]?.size || 1;
-
-            const countryDemand = ((uniqueCountryCount / countryCount) * parseFloat(totalHrs || 0)).toFixed(2);
-            const countrySiteCount = siteCountPerResourceCountry[resourceCountryKey] || 0;
-
-            updatedRows.push({
+        if (countryList.length > 1) {
+          // Expand into multiple rows
+          for (let i = 0; i < countryList.length; i++) {
+            dataWithExpandedCountryAndSite.push({
               ...row,
-              slno: updatedRows.length + 1,
-              country: country,
-              site: isCRA ? siteNumber : undefined,
-              revisedDemand: countryDemand,
-              countryDemand
+              country: countryList[i],
+              site: siteCountList[i].toString()
             });
+          }
+        } else {
+          // Single row
+          dataWithExpandedCountryAndSite.push({
+            ...row,
+            country: countryList[0] || "",
+            site: siteCountList[0]?.toString() || "0"
           });
-        });
-
+        }
       });
 
-      updateData(updatedRows);
-      console.log("✅ Final Output with country, site, revisedDemand, countryDemand:", updatedRows);
+
+      console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
+
+      // Step 2: Now call helper to calculate revisedDemand & update
+      calculateRevisedDemand(dataWithExpandedCountryAndSite);
     };
 
     reader.readAsArrayBuffer(file);
   };
+
+  // 🔹 Step 2 Helper: Calculate revisedDemand and updateData
+  function calculateRevisedDemand(rows) {
+    console.log("🔄 Inside calculateRevisedDemand:", rows);
+
+    const updatedRows = [];
+
+    // Step 1: Prepare helper structures
+    const uniqueCountriesPerService = {}; // service -> Set of countries
+    const countryOccurrencesPerService = {}; // service -> country -> count
+    const totalCountryEntriesForServiceCRA = {}; // service -> total count for CRA/LCRA
+
+    // First pass: collect all required stats
+    rows.forEach(({ service = "", country = "", resource = "" }) => {
+      if (!service || !country) return;
+
+      // Track unique countries for this service
+      if (!uniqueCountriesPerService[service]) {
+        uniqueCountriesPerService[service] = new Set();
+      }
+      uniqueCountriesPerService[service].add(country);
+
+      // Track how many times a country appears per service
+      if (!countryOccurrencesPerService[service]) {
+        countryOccurrencesPerService[service] = {};
+      }
+      countryOccurrencesPerService[service][country] =
+        (countryOccurrencesPerService[service][country] || 0) + 1;
+
+      // Track total countries for CRA/LCRA only
+      const isCRA = resource === "CRA" || resource === "LCRA";
+      if (isCRA) {
+        totalCountryEntriesForServiceCRA[service] =
+          (totalCountryEntriesForServiceCRA[service] || 0) + 1;
+      }
+    });
+
+    // Step 2: Compute revisedDemand and construct final rows
+    rows.forEach((row, index) => {
+      const { service = "", country = "", resource = "", totalHrs = 0 } = row;
+      const parsedTotalHrs = parseFloat(totalHrs) || 0;
+
+      const countriesForService = uniqueCountriesPerService[service]?.size || 1;
+      const countryCountForService =
+        countryOccurrencesPerService[service]?.[country] || 1;
+
+      const isCRA = resource === "CRA" || resource === "LCRA";
+
+      let revisedDemand = 0;
+
+      if (isCRA) {
+        const totalCountriesForService =
+          totalCountryEntriesForServiceCRA[service] || 1;
+
+        revisedDemand =
+          (totalCountriesForService / countryCountForService) * parsedTotalHrs;
+      } else {
+        revisedDemand =
+          (countriesForService / countryCountForService) * parsedTotalHrs;
+      }
+
+      // Final row with calculations
+      updatedRows.push({
+        ...row,
+        slno: index + 1,
+        revisedDemand: revisedDemand.toFixed(2),
+        countryDemand: revisedDemand.toFixed(2), // Same value stored in both fields for now
+      });
+    });
+
+    console.log("✅ Final Output with Revised Demand:", updatedRows);
+    updateData(updatedRows);
+  }
+
+
+
+
   const handleScheduleLevelMilestoneUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -456,7 +477,7 @@ function App() {
         <label><strong>Upload Schedule Level Milestone</strong></label>
         <input type="file" accept=".xlsx,.xls" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
-  <Categories currentData={data} loading={loading}  currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Categories currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
   );
