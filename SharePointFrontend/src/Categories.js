@@ -169,6 +169,7 @@ function Categories(props) {
                 <th>Country</th>
                 <th>Site</th>
                 <th>Revised Demand</th>
+
                 <th>Department</th>
                 <th>Sponsor</th>
                 <th>Current Project Status</th>
@@ -194,7 +195,8 @@ function Categories(props) {
                   <td>{row.plannedEnd || ""}</td>
                   <td>{row.country || ""}</td>
                   <td>{row.site || ""}</td>
-                  <td>{row.revisedDemand}</td>
+
+                  <td>{row.countryDemand}</td>
                   <td>{row.Department || ""}</td>
                   <td>{row.Sponsor || ""}</td>
                   <td>{row.currentProjectStatus || ""}</td>
@@ -224,9 +226,9 @@ function Categories(props) {
         </>
       )}
         </div>}
-        {activeTab === 'region' && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {activeTab === 'country' && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {activeTab === 'tab4' && <div className="tab-pane active">Content for Tab 4</div>}
+        {activeTab === 'region' && ScenerioOne.length > 0 && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
+        {activeTab === 'country' && ScenerioTwo.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
+        {activeTab === 'tab4' && ScenerioThree.length > 0 && <div className="tab-pane active">Content for Tab 4</div>}
       </div>
     </div>
   );
