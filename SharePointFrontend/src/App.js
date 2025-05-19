@@ -422,7 +422,12 @@ function App() {
           Sponsor: match?.["Sponsor"] || "",
           currentProjectStatus: match?.["Current Project Phase"] || "",
           Indication: match?.["Indication Picklist"] || "",
-          enrollmentMethod: match?.["Enrollment Method"] || ""
+          enrollmentMethod: match?.["Enrollment Method"] || "",
+          studyNumber: match?.["Study Number"] || "",
+          therapeuticArea: match?.["Therapeutic Area"] || "",
+          noOfSites: match?.["Number of Sites"] || "",
+          noOfCountries: match?.["Country"].split(',').length || 0,
+          nameOfCountries: match?.["Country"] || "",
         };
       });
 

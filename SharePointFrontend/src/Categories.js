@@ -20,7 +20,6 @@ function Categories(props) {
           const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${resource}|${oraStudyId}|${protocol}|${phase}`;
-      
           if (!acc[key]) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
@@ -34,6 +33,8 @@ function Categories(props) {
               units: 0,
               hrsPerUnit: 0,
               region: country,
+              oraStudyId,
+              protocol,
           }
         }
           acc[key].totalHrs += totalHrs;
