@@ -274,10 +274,9 @@ function App() {
           regionCountries.includes(entry["Study Country"])
         );
 
-        // Count active sites per country
         const countrySiteMap = {};
         matchingEntries.forEach(entry => {
-          const country = entry["Study Country"].trim();
+          const country = entry["Study Country"]?.trim();
           if (country) {
             countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
           }
@@ -286,24 +285,23 @@ function App() {
         const countryList = Object.keys(countrySiteMap);
         const siteCountList = countryList.map(country => countrySiteMap[country]);
 
-        if (countryList.length > 1) {
-          // Expand into multiple rows
-          for (let i = 0; i < countryList.length; i++) {
+        if (countryList.length > 0) {
+          countryList.forEach((country, i) => {
             dataWithExpandedCountryAndSite.push({
               ...row,
-              country: countryList[i],
+              country: country,
               site: siteCountList[i].toString()
             });
-          }
+          });
         } else {
-          // Single row
           dataWithExpandedCountryAndSite.push({
             ...row,
-            country: countryList[0] || "",
-            site: siteCountList[0]?.toString() || "0"
+            country: "",
+            site: "0"
           });
         }
       });
+
 
 
       console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
@@ -317,78 +315,73 @@ function App() {
 
   // 🔹 Step 2 Helper: Calculate revisedDemand and updateData
   function calculateRevisedDemand(rows) {
-    console.log("🔄 Inside calculateRevisedDemand:", rows);
-
     const updatedRows = [];
+    const serviceMap = {};
 
-    // Step 1: Prepare helper structures
-    const uniqueCountriesPerService = {}; // service -> Set of countries
-    const countryOccurrencesPerService = {}; // service -> country -> count
-    const totalCountryEntriesForServiceCRA = {}; // service -> total count for CRA/LCRA
+    const cleanNumber = val => {
+      if (val == null) return 0;
+      const str = val.toString().replace(/[^0-9.\-]/g, '').trim();
+      const num = parseFloat(str);
+      return isNaN(num) ? 0 : num;
+    };
 
-    // First pass: collect all required stats
-    rows.forEach(({ service = "", country = "", resource = "" }) => {
-      if (!service || !country) return;
+    // Step 1: Group data per service to compute total sites and total hours
+    rows.forEach(row => {
+      const service = row.service?.trim();
+      if (!service) return;
 
-      // Track unique countries for this service
-      if (!uniqueCountriesPerService[service]) {
-        uniqueCountriesPerService[service] = new Set();
+      const siteCount = cleanNumber(row.siteCount || row.sites || row.site || 1);
+      const totalHrs = cleanNumber(row.totalHrs);
+
+      if (!serviceMap[service]) {
+        serviceMap[service] = {
+          totalSites: 0,
+          totalHours: 0
+        };
       }
-      uniqueCountriesPerService[service].add(country);
 
-      // Track how many times a country appears per service
-      if (!countryOccurrencesPerService[service]) {
-        countryOccurrencesPerService[service] = {};
-      }
-      countryOccurrencesPerService[service][country] =
-        (countryOccurrencesPerService[service][country] || 0) + 1;
+      serviceMap[service].totalSites += siteCount;
+      serviceMap[service].totalHours += totalHrs;
 
-      // Track total countries for CRA/LCRA only
-      const isCRA = resource === "CRA" || resource === "LCRA";
-      if (isCRA) {
-        totalCountryEntriesForServiceCRA[service] =
-          (totalCountryEntriesForServiceCRA[service] || 0) + 1;
-      }
+      console.log(`🛠 Service: ${service}, SiteCount: ${siteCount}, TotalHrs: ${totalHrs}`);
     });
 
-    // Step 2: Compute revisedDemand and construct final rows
+    // Step 2: Calculate RevisedDemandFactor and RevisedDemand per row
     rows.forEach((row, index) => {
-      const { service = "", country = "", resource = "", totalHrs = 0 } = row;
-      const parsedTotalHrs = parseFloat(totalHrs) || 0;
+      const service = row.service?.trim();
+      const resource = row.resource?.trim();
+      const siteCount = cleanNumber(row.siteCount || row.sites || row.site || 1);
+      const totalHrs = cleanNumber(row.totalHrs);
 
-      const countriesForService = uniqueCountriesPerService[service]?.size || 1;
-      const countryCountForService =
-        countryOccurrencesPerService[service]?.[country] || 1;
+      const serviceData = serviceMap[service] || {};
+      const totalSites = serviceData.totalSites || 0;
 
-      const isCRA = resource === "CRA" || resource === "LCRA";
-
+      let revisedDemandFactor = 0;
       let revisedDemand = 0;
 
-      if (isCRA) {
-        const totalCountriesForService =
-          totalCountryEntriesForServiceCRA[service] || 1;
-
-        revisedDemand =
-          (totalCountriesForService / countryCountForService) * parsedTotalHrs;
-      } else {
-        revisedDemand =
-          (countriesForService / countryCountForService) * parsedTotalHrs;
+      if (totalSites > 0) {
+        revisedDemandFactor = siteCount / totalSites;
+        revisedDemand = revisedDemandFactor * totalHrs;
       }
 
-      // Final row with calculations
+      console.log(`🔢 Row ${index + 1} | Service: ${service}, Resource: ${resource}`);
+      console.log(`    → SiteCount: ${siteCount}, Total Sites: ${totalSites}, Total Hrs: ${totalHrs}`);
+      console.log(`    → RevisedDemandFactor: ${revisedDemandFactor.toFixed(3)}, RevisedDemand: ${revisedDemand.toFixed(3)}`);
+
       updatedRows.push({
         ...row,
         slno: index + 1,
-        revisedDemand: revisedDemand.toFixed(2),
-        countryDemand: revisedDemand.toFixed(2), // Same value stored in both fields for now
+        revisedDemandFactor: revisedDemandFactor.toFixed(3),
+        revisedDemand: revisedDemand.toFixed(3),
+        countryDemand: revisedDemand.toFixed(3),
+        totalSites: totalSites,
+        totalServiceHrs: serviceData.totalHours.toFixed(2)
       });
     });
 
-    console.log("✅ Final Output with Revised Demand:", updatedRows);
-    updateData(updatedRows);
+    console.log("✅ Final Output Rows:", updatedRows);
+    updateData(updatedRows); // Update table or UI with new data
   }
-
-
 
 
   const handleScheduleLevelMilestoneUpload = async (e) => {
