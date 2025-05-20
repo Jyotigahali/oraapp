@@ -318,35 +318,38 @@ function App() {
         }
 
         const matchingEntries = countryTable.filter(entry =>
-          entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+          (entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() || entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim()) &&
           entry["Site Status"]?.toLowerCase() === "active" &&
           regionCountries.includes(entry["Study Country"])
         );
 
         const countrySiteMap = {};
+        const studyNumbers = [];
         matchingEntries.forEach(entry => {
           const country = entry["Study Country"]?.trim();
           if (country) {
             countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
-          }
+            studyNumbers.push(entry["Study Number"]?.toString().trim());
+          } 
         });
 
         const countryList = Object.keys(countrySiteMap);
         const siteCountList = countryList.map(country => countrySiteMap[country]);
-
         if (countryList.length > 0) {
           countryList.forEach((country, i) => {
             dataWithExpandedCountryAndSite.push({
               ...row,
               country: country,
-              site: siteCountList[i].toString()
+              site: siteCountList[i].toString(),
+              studyNumber:studyNumbers[i] || "",
             });
           });
         } else {
           dataWithExpandedCountryAndSite.push({
             ...row,
             country: "",
-            site: ""
+            site: "",
+            studyNumber:"",
           });
         }
       });
@@ -487,12 +490,13 @@ function App() {
       const workbook = XLSX.read(buffer, { type: "buffer" });
 
       // ✅ Find the correct sheet name
-      const sheetName = workbook.SheetNames.find(name =>
-        name.trim().toLowerCase() === "records_as_of_2025_05_01_edt"
-      );
+      const sheetName = workbook.SheetNames[0]
+      // .find(name =>
+      //   name.trim().toLowerCase() === "records_as_of_2025_05_01_edt"
+      // );
 
       if (!sheetName) {
-        alert("Sheet 'records_as_of_2025_05_01_EDT' not found!");
+        alert("Sheets not found!");
         return;
       }
 
@@ -521,16 +525,16 @@ function App() {
 
       // ✅ Step 3: Merge milestone fields into your data
       const updatedWithMilestones = data.map(row => {
-        const studyId = (row.oraStudyId || "").toString().trim();
+        const studyId = (row.studyNumber || "").toString().trim();
         const match = milestoneMap[studyId];
 
         return {
           ...row,
           Department: match?.["Department"] || "",
           Sponsor: match?.["Sponsor"] || "",
-          currentProjectStatus: match?.["Current Project Phase"] || "",
+          currentProjectStatus: match?.["** Current Project Phase"] || "",
           Indication: match?.["Indication Picklist"] || "",
-          enrollmentMethod: match?.["Enrollment Method"] || "",
+          enrollmentMethod: match?.["** Enrollment Method"] || "",
           studyNumber: match?.["Study Number"] || "",
           therapeuticArea: match?.["Therapeutic Area"] || "",
           noOfSites: match?.["Number of Sites"] || "",
