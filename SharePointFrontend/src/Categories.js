@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import RollupTable from './RollupTable ';
-import { Table, Button, Spinner, Pagination } from "react-bootstrap";
+import { Table, Button, Pagination } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
