@@ -13,9 +13,10 @@ function App() {
   //const [phaseTable, setPhaseTable] = useState([]); // New state for phase table
   const [studyData, setStudyData] = useState([]);
   const [studyCountry, setStudyCountry] = useState([]); // New state for study country
-  const [resourceData, setResourceData] = useState([]);
+  //const [resourceData, setResourceData] = useState([]);
   const [expandedData, setExpandedData] = useState([]);
-  const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
+  const [excludedRows, setExcludedRows] = useState([]);
+
 
 
 
@@ -184,37 +185,7 @@ function App() {
       ];
 
       // Step 3: Inject plannedStart and plannedEnd into each data row
-      // const newDataWithDates = data.map((row) => {
-      //   const oraStudyId = row.oraStudyId?.trim();
-      //   const phase = row.phase?.trim();
-
-      //   const phaseRef = phaseDateReference.find(
-      //     (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
-      //   );
-
-      //   if (!phaseRef) {
-      //     return { ...row, plannedStart: "", plannedEnd: "" };
-      //   }
-
-      //   const { startLabel, endLabel } = phaseRef;
-
-      //   const startMilestone = studyMilestones.find(
-      //     (m) => m.study === oraStudyId && m.type === startLabel
-      //   );
-      //   const endMilestone = studyMilestones.find(
-      //     (m) => m.study === oraStudyId && m.type === endLabel
-      //   );
-
-      //   return {
-      //     ...row,
-      //     plannedStart: startMilestone?.start || "",
-      //     plannedEnd: endMilestone?.end || "",
-      //   };
-      // });
-      const newDataWithDates = [];
-      const unmatchedRows = [];
-
-      data.forEach((row) => {
+      const newDataWithDates = data.map((row) => {
         const oraStudyId = row.oraStudyId?.trim();
         const phase = row.phase?.trim();
 
@@ -223,8 +194,7 @@ function App() {
         );
 
         if (!phaseRef) {
-          unmatchedRows.push(row); // ✅ Keep only in unmatchedRows
-          return; // ❌ Do not add to newDataWithDates
+          return { ...row, plannedStart: "", plannedEnd: "" };
         }
 
         const { startLabel, endLabel } = phaseRef;
@@ -236,34 +206,18 @@ function App() {
           (m) => m.study === oraStudyId && m.type === endLabel
         );
 
-        newDataWithDates.push({
+        return {
           ...row,
           plannedStart: startMilestone?.start || "",
           plannedEnd: endMilestone?.end || "",
-        });
+        };
       });
 
-      updateData(newDataWithDates);        // ✅ Final usable data with matched phases
-      setInvalidPhaseRows(unmatchedRows);  // ✅ Rows with unknown/unmatched phases
-
-      //updateData(newDataWithDates);
+      updateData(newDataWithDates);
     } catch (err) {
       console.error("Error parsing milestone file:", err);
     }
   };
-
-
-
-  const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
-    if (!rows || rows.length === 0) return;
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Unmatched Rows");
-
-    XLSX.writeFile(workbook, fileName);
-  };
-
 
   const handleStudyUpload = async (e) => {
     const file = e.target.files[0];
@@ -318,7 +272,7 @@ function App() {
         }
 
         const matchingEntries = countryTable.filter(entry =>
-          entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+          entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim() &&
           entry["Site Status"]?.toLowerCase() === "active" &&
           regionCountries.includes(entry["Study Country"])
         );
@@ -351,48 +305,12 @@ function App() {
         }
       });
 
-      const finalData = [];
 
-      dataWithExpandedCountryAndSite.forEach(row => {
-        const { resource = "", oraStudyId = "", country = "", site = "" } = row;
 
-        const [rolePrefix, regionCode] = resource.split("-");
-        const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
-
-        if (isCRAType && site !== "0" && country) {
-          const regionCountries = regionMap[regionCode];
-
-          const matchingEntries = countryTable.filter(entry =>
-            entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
-            entry["Site Status"]?.toLowerCase() === "active" &&
-            regionCountries?.includes(entry["Study Country"])
-          );
-
-          if (matchingEntries.length > 0) {
-            matchingEntries.forEach(() => {
-              finalData.push({
-                ...row,
-                country: country,
-                site: "1"
-              });
-            });
-          } else {
-            finalData.push(row);
-          }
-        } else {
-          finalData.push(row);
-        }
-      });
-
-      console.log("🆕 Final data with CRA/LCRA detail rows applied:", finalData);
+      console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
 
       // Step 2: Now call helper to calculate revisedDemand & update
-      calculateRevisedDemand(finalData);
-
-      // console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
-
-      // // Step 2: Now call helper to calculate revisedDemand & update
-      // calculateRevisedDemand(dataWithExpandedCountryAndSite);
+      calculateRevisedDemand(dataWithExpandedCountryAndSite);
     };
 
     reader.readAsArrayBuffer(file);
@@ -475,6 +393,7 @@ function App() {
 
     console.log("✅ Final Output Rows:", updatedRows);
     updateData(updatedRows); // Update table or UI with new data
+    exportExcludedData()
   }
 
 
@@ -486,16 +405,8 @@ function App() {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "buffer" });
 
-      // ✅ Find the correct sheet name
-      const sheetName = workbook.SheetNames.find(name =>
-        name.trim().toLowerCase() === "records_as_of_2025_05_01_edt"
-      );
-
-      if (!sheetName) {
-        alert("Sheet 'records_as_of_2025_05_01_EDT' not found!");
-        return;
-      }
-
+      // ✅ Directly access the first (and only) sheet
+      const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
       // ✅ Step 1: Read and clean column headers (trim spaces)
@@ -509,7 +420,6 @@ function App() {
         return cleanedEntry;
       });
 
-      // 🧪 Debug: log keys to see exact column names
       console.log("📋 Milestone Columns:", Object.keys(milestoneData[0]));
 
       // ✅ Step 2: Build map using "Study Number"
@@ -534,16 +444,37 @@ function App() {
           studyNumber: match?.["Study Number"] || "",
           therapeuticArea: match?.["Therapeutic Area"] || "",
           noOfSites: match?.["Number of Sites"] || "",
-          noOfCountries: match?.["Country"].split(',').length || 0,
+          noOfCountries: match?.["Country"]?.split(',').length || 0,
           nameOfCountries: match?.["Country"] || "",
         };
       });
 
       updateData(updatedWithMilestones);
+     
       console.log("✅ Updated data with Schedule-Level Milestone columns", updatedWithMilestones);
     } catch (err) {
       console.error("❌ Error reading schedule milestone file:", err);
     }
+  };
+  const exportExcludedData = () => {
+    const allowedPhases = ["Startup", "Conduct", "LTFU", "DBL", "Closeout", "All"];
+
+    const filteredOutRows = data.filter(row => {
+      const phase = row.phase?.trim();
+      const isInvalidPhase = !allowedPhases.includes(phase);
+
+      return isInvalidPhase; // Only remove rows with invalid phase
+    });
+
+    const remainingData = data.filter(row => {
+      const phase = row.phase?.trim();
+      return allowedPhases.includes(phase); // Keep only valid phases
+    });
+
+    setData(remainingData);              // Keep only valid phase rows
+    setExcludedRows(filteredOutRows);    // Store invalid phase rows
+
+
   };
 
 
@@ -567,9 +498,9 @@ function App() {
       </div>
       <div className="mt-3">
         <label><strong>Upload Schedule Level Milestone</strong></label>
-        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
+        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
-      <Categories errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Categories errorFile={excludedRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
   );
