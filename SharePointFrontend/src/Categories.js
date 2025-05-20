@@ -20,6 +20,7 @@ function Categories(props) {
           const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${resource}|${oraStudyId}|${protocol}|${phase}`;
+          const region = resource.split("-")[0]
           if (!acc[key]) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
@@ -29,6 +30,7 @@ function Categories(props) {
               role: resource,
               start : plannedStart,
               end : plannedEnd,
+              resourceRegion: country ? `${region}-${country}` : region,
               totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
@@ -65,7 +67,7 @@ function Categories(props) {
               resource,
               WorkItem: `${oraStudyId} - ${protocol}`,
               activity: phase,
-              role: `${region}-${country}`,
+              role: country ? `${region}-${country}` : region,
               start : plannedStart,
               end : plannedEnd,
               totalHrs: 0,
@@ -86,6 +88,45 @@ function Categories(props) {
       console.log("rolledUp", newArray);
       setScenerioTwo(newArray);
     }
+
+    // if(activeTab === 'CRA/LCRA' && currentData.length > 0) {
+    //   const rolledUpByCRA = Object.values(
+    //     currentData.reduce((acc, curr) => {
+    //       const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
+    //       const [rolePrefix, regionCode] = resource.split("-");
+    //       const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
+    //       // Key to group by: combination of resource + oraStudyId + protocol
+    //       if(isCRAType){
+
+    //       }
+    //       const key = `${resource}|${oraStudyId}|${protocol}`;
+    //       const region = resource.split("-")[0]
+    //       if (!acc[key]) {
+    //         acc[key] = {
+    //           ...rest, // All other fields (Department, Sponsor, etc.)
+    //           resource,
+    //           WorkItem: `${oraStudyId} - ${protocol}`,
+    //           activity: phase,
+    //           role: resource,
+    //           start : plannedStart,
+    //           end : plannedEnd,
+    //           totalHrs: 0,
+    //           units: 0,
+    //           hrsPerUnit: 0,
+    //           region: country,
+    //       }
+    //     }
+    //       acc[key].totalHrs += totalHrs;
+    //       acc[key].units += units;
+    //       acc[key].hrsPerUnit += hrsPerUnit;
+      
+    //       return acc;
+    //     }, {})
+    //   );
+    //   let newArray = Object.values(rolledUpByCRA);
+    //   console.log("rolledUpCRA/LCRA", newArray);  
+    //   setScenerioThree(newArray);
+    // }
   }, [activeTab, currentData]);
 
   const exportToCSV = (data, fileName) => {
@@ -135,8 +176,8 @@ function Categories(props) {
         </li>
         <li className="nav-item">
           <button
-            className={`nav-link ${activeTab === 'tab4' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tab4')}
+            className={`nav-link ${activeTab === 'CRA/LCRA' ? 'active' : ''}`}
+            onClick={() => setActiveTab('CRA/LCRA')}
           >
              Scenerio Three
           </button>

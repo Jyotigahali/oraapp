@@ -7,27 +7,28 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
   console.log("RollupTable data", data);
   const handleExportDemand = (data) => {
     const csvData = data.map(item => ({
+
       WorkItem: item.WorkItem,
       Activity: item.activity,
       Begin: item.start,
       End: item.end,
       Role: item.role,
-      Value:loadFTE(item),
       Comlexity: "Medium",
+      Value:loadFTE(item),
       CID: "",
       MID:"",
       MIM:"",
-      Region: item.region,
-      "_Therapeutic Area":  item.therapeuticArea,
+      "_Resource Region": item.resourceRegion,
+      // "_Therapeutic Area":  item.therapeuticArea,
       _Department: item.Department,
       _Sponsor: item.Sponsor,
       "_Current Project Status": item.currentProjectStatus,
       _Indication:item.Indication,
       "_Enrollment Method":item.enrollmentMethod,
-      "_Study Number": item.studyNumber,
+      "_Study Nickname": item.studyNumber,
       "_OraProject ID":item.oraStudyId,
-      "_#ofSites": item.noOfSites,
-      "_#ofCountries": item.noOfCountries,
+      "_# of Sites": item.noOfSites,
+      "_# of Countries": item.noOfCountries,
       "_Name of Country(ies)": item.nameOfCountries,
       "_Study Site": item.site,    
     }));
@@ -40,15 +41,15 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Activity: item.activity,
       Begin: item.start,
       End: item.end,
-      Role: item.role,
-      Region: item.region,
-     "Therapeutic Area":  item.therapeuticArea,
+      // Role: item.role,
+      "Resource Region": item.role,
+    //  "Therapeutic Area":  item.therapeuticArea,
       Department: item.Department,
       Sponsor: item.Sponsor,
       "Current Project Status": item.currentProjectStatus,
       Indication:item.Indication,
       "Enrollment Method":item.enrollmentMethod,
-      "Study Number": item.studyNumber,
+      "Study Nickname": item.studyNumber,
       "OraProject ID": item.oraStudyId,
       "# of Sites": item.noOfSites,
       "# of Countries": item.noOfCountries,
@@ -108,6 +109,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
             <th>FTE</th>
             <th>#ofSite</th>
             <th>#ofCountries</th>
+            <th>Resource Region</th>
             <th>_Name of Country</th>
             {/* Add any other columns you want to display */}
           </tr>
@@ -129,6 +131,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{loadFTE(row)}</td>
               <td>{row.noOfSites}</td>
               <td>{row.noOfCountries}</td>
+              <td>{row.resourceRegion}</td>
               <td>{row.nameOfCountries}</td>
               {/* Add more <td> if needed */}
             </tr>
