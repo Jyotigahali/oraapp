@@ -244,8 +244,8 @@ function App() {
       });
 
       updateData(newDataWithDates);        // ✅ Final usable data with matched phases
-      setInvalidPhaseRows(unmatchedRows);  // ✅ Rows with unknown/unmatched phases
-
+      setInvalidPhaseRows(unmatchedRows); 
+      
       //updateData(newDataWithDates);
     } catch (err) {
       console.error("Error parsing milestone file:", err);
@@ -254,15 +254,15 @@ function App() {
 
 
 
-  const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
-    if (!rows || rows.length === 0) return;
+  // const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
+  //   if (!rows || rows.length === 0) return;
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Unmatched Rows");
+  //   const worksheet = XLSX.utils.json_to_sheet(rows);
+  //   const workbook = XLSX.utils.book_new();
+  //   XLSX.utils.book_append_sheet(workbook, worksheet, "Unmatched Rows");
 
-    XLSX.writeFile(workbook, fileName);
-  };
+  //   XLSX.writeFile(workbook, fileName);
+  // };
 
 
   const handleStudyUpload = async (e) => {
@@ -354,43 +354,43 @@ function App() {
         }
       });
 
-      const finalData = [];
+      // const finalData = [];
 
-      dataWithExpandedCountryAndSite.forEach(row => {
-        const { resource = "", oraStudyId = "", country = "", site = "" } = row;
+      // dataWithExpandedCountryAndSite.forEach(row => {
+      //   const { resource = "", oraStudyId = "", country = "", site = "" } = row;
 
-        const [rolePrefix, regionCode] = resource.split("-");
-        const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
+      //   const [rolePrefix, regionCode] = resource.split("-");
+      //   const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
 
-        if (isCRAType && site !== "0" && country) {
-          const regionCountries = regionMap[regionCode];
+      //   if (isCRAType && site !== "0" && country) {
+      //     const regionCountries = regionMap[regionCode];
 
-          const matchingEntries = countryTable.filter(entry =>
-            entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
-            entry["Site Status"]?.toLowerCase() === "active" &&
-            regionCountries?.includes(entry["Study Country"])
-          );
+      //     const matchingEntries = countryTable.filter(entry =>
+      //       entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+      //       entry["Site Status"]?.toLowerCase() === "active" &&
+      //       regionCountries?.includes(entry["Study Country"])
+      //     );
 
-          if (matchingEntries.length > 0) {
-            matchingEntries.forEach(() => {
-              finalData.push({
-                ...row,
-                country: country,
-                site: "1"
-              });
-            });
-          } else {
-            finalData.push(row);
-          }
-        } else {
-          finalData.push(row);
-        }
-      });
+      //     if (matchingEntries.length > 0) {
+      //       matchingEntries.forEach(() => {
+      //         finalData.push({
+      //           ...row,
+      //           country: country,
+      //           site: "1"
+      //         });
+      //       });
+      //     } else {
+      //       finalData.push(row);
+      //     }
+      //   } else {
+      //     finalData.push(row);
+      //   }
+      // });
 
-      console.log("🆕 Final data with CRA/LCRA detail rows applied:", finalData);
+      console.log("🆕 Final data with CRA/LCRA detail rows applied:", dataWithExpandedCountryAndSite);
 
       // Step 2: Now call helper to calculate revisedDemand & update
-      calculateRevisedDemand(finalData);
+      calculateRevisedDemand(dataWithExpandedCountryAndSite);
 
       // console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
 
