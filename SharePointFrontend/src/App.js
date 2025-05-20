@@ -184,37 +184,7 @@ function App() {
       ];
 
       // Step 3: Inject plannedStart and plannedEnd into each data row
-      // const newDataWithDates = data.map((row) => {
-      //   const oraStudyId = row.oraStudyId?.trim();
-      //   const phase = row.phase?.trim();
-
-      //   const phaseRef = phaseDateReference.find(
-      //     (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
-      //   );
-
-      //   if (!phaseRef) {
-      //     return { ...row, plannedStart: "", plannedEnd: "" };
-      //   }
-
-      //   const { startLabel, endLabel } = phaseRef;
-
-      //   const startMilestone = studyMilestones.find(
-      //     (m) => m.study === oraStudyId && m.type === startLabel
-      //   );
-      //   const endMilestone = studyMilestones.find(
-      //     (m) => m.study === oraStudyId && m.type === endLabel
-      //   );
-
-      //   return {
-      //     ...row,
-      //     plannedStart: startMilestone?.start || "",
-      //     plannedEnd: endMilestone?.end || "",
-      //   };
-      // });
-      const newDataWithDates = [];
-      const unmatchedRows = [];
-
-      data.forEach((row) => {
+      const newDataWithDates = data.map((row) => {
         const oraStudyId = row.oraStudyId?.trim();
         const phase = row.phase?.trim();
 
@@ -223,8 +193,7 @@ function App() {
         );
 
         if (!phaseRef) {
-          unmatchedRows.push(row); // ✅ Keep only in unmatchedRows
-          return; // ❌ Do not add to newDataWithDates
+          return { ...row, plannedStart: "", plannedEnd: "" };
         }
 
         const { startLabel, endLabel } = phaseRef;
@@ -236,17 +205,49 @@ function App() {
           (m) => m.study === oraStudyId && m.type === endLabel
         );
 
-        newDataWithDates.push({
+        return {
           ...row,
           plannedStart: startMilestone?.start || "",
           plannedEnd: endMilestone?.end || "",
-        });
+        };
       });
+      // const newDataWithDates = [];
+      // const unmatchedRows = [];
 
-      updateData(newDataWithDates);        // ✅ Final usable data with matched phases
-      setInvalidPhaseRows(unmatchedRows); 
-      
-      //updateData(newDataWithDates);
+      // data.forEach((row) => {
+      //   const oraStudyId = row.oraStudyId?.trim();
+      //   const phase = row.phase?.trim();
+
+      //   const phaseRef = phaseDateReference.find(
+      //     (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
+      //   );
+
+      //   if (!phaseRef) {
+      //     unmatchedRows.push(row); // ✅ Keep only in unmatchedRows
+      //     return; // ❌ Do not add to newDataWithDates
+      //   }
+
+      //   const { startLabel, endLabel } = phaseRef;
+
+      //   const startMilestone = studyMilestones.find(
+      //     (m) => m.study === oraStudyId && m.type === startLabel
+      //   );
+      //   const endMilestone = studyMilestones.find(
+      //     (m) => m.study === oraStudyId && m.type === endLabel
+      //   );
+
+      //   newDataWithDates.push({
+      //     ...row,
+      //     plannedStart: startMilestone?.start || "",
+      //     plannedEnd: endMilestone?.end || "",
+      //   });
+      // });
+
+      // updateData(newDataWithDates);        // ✅ Final usable data with matched phases
+      // setInvalidPhaseRows(unmatchedRows); 
+
+      updateData(newDataWithDates);
+
     } catch (err) {
       console.error("Error parsing milestone file:", err);
     }
@@ -330,7 +331,7 @@ function App() {
           if (country) {
             countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
             studyNumbers.push(entry["Study Number"]?.toString().trim());
-          } 
+          }
         });
 
         const countryList = Object.keys(countrySiteMap);
@@ -341,7 +342,7 @@ function App() {
               ...row,
               country: country,
               site: siteCountList[i].toString(),
-              studyNumber:studyNumbers[i] || "",
+              studyNumber: studyNumbers[i] || "",
             });
           });
         } else {
@@ -349,7 +350,7 @@ function App() {
             ...row,
             country: "",
             site: "",
-            studyNumber:"",
+            studyNumber: "",
           });
         }
       });
@@ -482,48 +483,51 @@ function App() {
 
 
   const handleScheduleLevelMilestoneUpload = async (e) => {
+    // Get the uploaded file from input
     const file = e.target.files[0];
     if (!file) return;
 
     try {
+      // Read the file as an ArrayBuffer
       const buffer = await file.arrayBuffer();
+
+      // Parse the buffer into a workbook using SheetJS (XLSX)
       const workbook = XLSX.read(buffer, { type: "buffer" });
 
-      // ✅ Find the correct sheet name
-      const sheetName = workbook.SheetNames[0]
-      // .find(name =>
-      //   name.trim().toLowerCase() === "records_as_of_2025_05_01_edt"
-      // );
+      // Get the first sheet name (you can customize if needed)
+      const sheetName = workbook.SheetNames[0];
 
       if (!sheetName) {
         alert("Sheets not found!");
         return;
       }
 
+      // Get the worksheet object using the sheet name
       const worksheet = workbook.Sheets[sheetName];
 
-      // ✅ Step 1: Read and clean column headers (trim spaces)
+      // Convert worksheet into JSON (raw array of objects)
       const rawMilestoneData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
+      // Clean up column headers: trim keys
       const milestoneData = rawMilestoneData.map(entry => {
         const cleanedEntry = {};
         Object.keys(entry).forEach(key => {
-          cleanedEntry[key.trim()] = entry[key]; // removes spaces
+          cleanedEntry[key.trim()] = entry[key]; // Trim key names
         });
         return cleanedEntry;
       });
 
-      // 🧪 Debug: log keys to see exact column names
+      // 🧪 Debug: Log the column names
       console.log("📋 Milestone Columns:", Object.keys(milestoneData[0]));
 
-      // ✅ Step 2: Build map using "Study Number"
+      // Create a lookup map for milestone data by Study Number
       const milestoneMap = {};
       milestoneData.forEach(entry => {
         const studyNumber = (entry["Study Number"] || "").toString().trim();
         if (studyNumber) milestoneMap[studyNumber] = entry;
       });
 
-      // ✅ Step 3: Merge milestone fields into your data
+      // Merge the milestone fields into your existing data
       const updatedWithMilestones = data.map(row => {
         const studyId = (row.studyNumber || "").toString().trim();
         const match = milestoneMap[studyId];
@@ -538,18 +542,29 @@ function App() {
           studyNumber: match?.["Study Number"] || "",
           therapeuticArea: match?.["Therapeutic Area"] || "",
           noOfSites: match?.["Number of Sites"] || "",
-          noOfCountries: match?.["Country"].split(',').length || 0,
+          noOfCountries: match?.["Country"]?.split(',').length || 0,
           nameOfCountries: match?.["Country"] || "",
         };
       });
 
-      updateData(updatedWithMilestones);
-      console.log("✅ Updated data with Schedule-Level Milestone columns", updatedWithMilestones);
+      // ✅ Filter out rows with missing plannedStart or plannedEnd
+      const filteredOutRows = updatedWithMilestones.filter(row => {
+        const isInvalidDate = !row.plannedStart || !row.plannedEnd;
+        return isInvalidDate;
+      });
+
+      // ✅ Keep only the valid rows
+      const remainingData = updatedWithMilestones.filter(row => !filteredOutRows.includes(row));
+
+      // ✅ Update the main state and excluded list
+      updateData(remainingData);              // Rows with complete dates
+      setInvalidPhaseRows(filteredOutRows);   // Rows missing plannedStart or plannedEnd
+
+      console.log("✅ Final cleaned milestone data:", remainingData);
     } catch (err) {
       console.error("❌ Error reading schedule milestone file:", err);
     }
   };
-
 
 
   return (
