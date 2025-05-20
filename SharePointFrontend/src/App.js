@@ -161,7 +161,7 @@ function App() {
       // Step 1: Parse milestone rows
       const studyMilestones = json
         .map((row) => {
-          const study = row["Study"]?.trim() || "";
+          const study = row["Ora Project Code"]?.trim() || "";
           const type = row["Milestone Type"] || row["Milestone type"] || "";
           const start = parseExcelDate(row["Planned Start Date"] || row["Planned start date"]);
           const end = parseExcelDate(row["Planned Finish Date"] || row["Planned finish date"]);
@@ -297,17 +297,53 @@ function App() {
           dataWithExpandedCountryAndSite.push({
             ...row,
             country: "",
-            site: "0"
+            site: ""
           });
         }
       });
 
+      const finalData = [];
 
+      dataWithExpandedCountryAndSite.forEach(row => {
+        const { resource = "", oraStudyId = "", country = "", site = "" } = row;
 
-      console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
+        const [rolePrefix, regionCode] = resource.split("-");
+        const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
+
+        if (isCRAType && site !== "0" && country) {
+          const regionCountries = regionMap[regionCode];
+
+          const matchingEntries = countryTable.filter(entry =>
+            entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
+            entry["Site Status"]?.toLowerCase() === "active" &&
+            regionCountries?.includes(entry["Study Country"])
+          );
+
+          if (matchingEntries.length > 0) {
+            matchingEntries.forEach(() => {
+              finalData.push({
+                ...row,
+                country: country,
+                site: "1"
+              });
+            });
+          } else {
+            finalData.push(row);
+          }
+        } else {
+          finalData.push(row);
+        }
+      });
+
+      console.log("🆕 Final data with CRA/LCRA detail rows applied:", finalData);
 
       // Step 2: Now call helper to calculate revisedDemand & update
-      calculateRevisedDemand(dataWithExpandedCountryAndSite);
+      calculateRevisedDemand(finalData);
+
+      // console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
+
+      // // Step 2: Now call helper to calculate revisedDemand & update
+      // calculateRevisedDemand(dataWithExpandedCountryAndSite);
     };
 
     reader.readAsArrayBuffer(file);
@@ -343,6 +379,10 @@ function App() {
       serviceMap[service].totalSites += siteCount;
       serviceMap[service].totalHours += totalHrs;
 
+      if (row.site || row.siteCount || row.sites || row.country) {
+        serviceMap[service].hasSiteOrCountry = true;
+      }
+
       console.log(`🛠 Service: ${service}, SiteCount: ${siteCount}, TotalHrs: ${totalHrs}`);
     });
 
@@ -359,7 +399,11 @@ function App() {
       let revisedDemandFactor = 0;
       let revisedDemand = 0;
 
-      if (totalSites > 0) {
+      // 👇 New condition
+      const isSiteZero = siteCount === 0;
+      const isCountryMissing = row.country === undefined || row.country === null || row.country.toString().trim() === "";
+
+      if (!(isSiteZero && isCountryMissing) && totalSites > 0) {
         revisedDemandFactor = siteCount / totalSites;
         revisedDemand = revisedDemandFactor * totalHrs;
       }
@@ -371,13 +415,14 @@ function App() {
       updatedRows.push({
         ...row,
         slno: index + 1,
-        revisedDemandFactor: revisedDemandFactor.toFixed(3),
+        //revisedDemandFactor: revisedDemandFactor.toFixed(3),
         revisedDemand: revisedDemand.toFixed(3),
-        countryDemand: revisedDemand.toFixed(3),
+        //countryDemand: revisedDemand.toFixed(3),
         totalSites: totalSites,
         totalServiceHrs: serviceData.totalHours.toFixed(2)
       });
     });
+
 
     console.log("✅ Final Output Rows:", updatedRows);
     updateData(updatedRows); // Update table or UI with new data
@@ -461,7 +506,7 @@ function App() {
       {loading && <Spinner animation="border" className="mt-3" />}
       <div className="mt-3">
         <label><strong>Upload Milestone File</strong></label>
-        <input type="file" accept=".xlsx,.xls" onChange={handleMilestoneUpload} />
+        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleMilestoneUpload} />
       </div>
       <div className="mt-3">
         <label><strong>Upload studty Country</strong></label>
@@ -469,11 +514,11 @@ function App() {
       </div>
       <div className="mt-3">
         <label><strong>Upload Study File</strong></label>
-        <input type="file" accept=".xlsx,.xls" onChange={handleStudyUpload} />
+        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleStudyUpload} />
       </div>
       <div className="mt-3">
         <label><strong>Upload Schedule Level Milestone</strong></label>
-        <input type="file" accept=".xlsx,.xls" onChange={handleScheduleLevelMilestoneUpload} />
+        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
       <Categories currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}

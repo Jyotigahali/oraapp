@@ -169,7 +169,6 @@ function Categories(props) {
                 <th>Country</th>
                 <th>Site</th>
                 <th>Revised Demand</th>
-
                 <th>Department</th>
                 <th>Sponsor</th>
                 <th>Current Project Status</th>
@@ -195,7 +194,7 @@ function Categories(props) {
                   <td>{row.plannedEnd || ""}</td>
                   <td>{row.country || ""}</td>
                   <td>{row.site || ""}</td>
-
+                  <td>{row.revisedDemand || ""}</td>
                   <td>{row.countryDemand}</td>
                   <td>{row.Department || ""}</td>
                   <td>{row.Sponsor || ""}</td>
