@@ -15,6 +15,8 @@ function App() {
   const [studyCountry, setStudyCountry] = useState([]); // New state for study country
   const [resourceData, setResourceData] = useState([]);
   const [expandedData, setExpandedData] = useState([]);
+  const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
+
 
 
   // You can change this to 25, 50, etc.
@@ -182,7 +184,37 @@ function App() {
       ];
 
       // Step 3: Inject plannedStart and plannedEnd into each data row
-      const newDataWithDates = data.map((row) => {
+      // const newDataWithDates = data.map((row) => {
+      //   const oraStudyId = row.oraStudyId?.trim();
+      //   const phase = row.phase?.trim();
+
+      //   const phaseRef = phaseDateReference.find(
+      //     (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
+      //   );
+
+      //   if (!phaseRef) {
+      //     return { ...row, plannedStart: "", plannedEnd: "" };
+      //   }
+
+      //   const { startLabel, endLabel } = phaseRef;
+
+      //   const startMilestone = studyMilestones.find(
+      //     (m) => m.study === oraStudyId && m.type === startLabel
+      //   );
+      //   const endMilestone = studyMilestones.find(
+      //     (m) => m.study === oraStudyId && m.type === endLabel
+      //   );
+
+      //   return {
+      //     ...row,
+      //     plannedStart: startMilestone?.start || "",
+      //     plannedEnd: endMilestone?.end || "",
+      //   };
+      // });
+      const newDataWithDates = [];
+      const unmatchedRows = [];
+
+      data.forEach((row) => {
         const oraStudyId = row.oraStudyId?.trim();
         const phase = row.phase?.trim();
 
@@ -191,7 +223,8 @@ function App() {
         );
 
         if (!phaseRef) {
-          return { ...row, plannedStart: "", plannedEnd: "" };
+          unmatchedRows.push(row); // ✅ Keep only in unmatchedRows
+          return; // ❌ Do not add to newDataWithDates
         }
 
         const { startLabel, endLabel } = phaseRef;
@@ -203,18 +236,34 @@ function App() {
           (m) => m.study === oraStudyId && m.type === endLabel
         );
 
-        return {
+        newDataWithDates.push({
           ...row,
           plannedStart: startMilestone?.start || "",
           plannedEnd: endMilestone?.end || "",
-        };
+        });
       });
 
-      updateData(newDataWithDates);
+      updateData(newDataWithDates);        // ✅ Final usable data with matched phases
+      setInvalidPhaseRows(unmatchedRows);  // ✅ Rows with unknown/unmatched phases
+
+      //updateData(newDataWithDates);
     } catch (err) {
       console.error("Error parsing milestone file:", err);
     }
   };
+
+
+
+  const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
+    if (!rows || rows.length === 0) return;
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Unmatched Rows");
+
+    XLSX.writeFile(workbook, fileName);
+  };
+
 
   const handleStudyUpload = async (e) => {
     const file = e.target.files[0];
@@ -520,7 +569,7 @@ function App() {
         <label><strong>Upload Schedule Level Milestone</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
-      <Categories currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Categories errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
   );
