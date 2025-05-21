@@ -11,7 +11,7 @@ function Categories(props) {
   const [ScenerioOne, setScenerioOne] = useState([]);
   const [ScenerioTwo, setScenerioTwo] = useState([]);
   const [ScenerioThree, setScenerioThree] = useState([]) 
-  const { currentData, loading,setCurrentPage,currentPage,errorFile } = props;
+  const { currentData, loading,setCurrentPage,currentPage,errorFile, craData } = props;
   console.log("currentData", currentData);
   useEffect(() => {
     if(activeTab === 'region' && currentData.length > 0) {
@@ -195,6 +195,9 @@ function Categories(props) {
 
              <Button className="my-3" onClick={() => exportToCSV(errorFile, "exporteErrorFile.csv")}>
             Export  error CSV
+          </Button>
+             <Button className="my-3" onClick={() => exportToCSV(craData, "exporteErrorFile.csv")}>
+            Export  CRA File
           </Button>
 
           <Table striped bordered hover>
