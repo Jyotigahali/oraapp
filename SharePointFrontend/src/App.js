@@ -388,15 +388,12 @@ function App() {
       //   }
       // });
 
-      console.log("🆕 Final data with CRA/LCRA detail rows applied:", dataWithExpandedCountryAndSite);
+   
 
-      // Step 2: Now call helper to calculate revisedDemand & update
-      calculateRevisedDemand(dataWithExpandedCountryAndSite);
-
-      // console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
+       console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
 
       // // Step 2: Now call helper to calculate revisedDemand & update
-      // calculateRevisedDemand(dataWithExpandedCountryAndSite);
+       calculateRevisedDemand(dataWithExpandedCountryAndSite);
     };
 
     reader.readAsArrayBuffer(file);
@@ -523,13 +520,13 @@ function App() {
       // Create a lookup map for milestone data by Study Number
       const milestoneMap = {};
       milestoneData.forEach(entry => {
-        const studyNumber = (entry["Study Number"] || "").toString().trim();
+        const studyNumber = (entry["Alternative Study Number"] || "").toString().trim();
         if (studyNumber) milestoneMap[studyNumber] = entry;
       });
 
       // Merge the milestone fields into your existing data
       const updatedWithMilestones = data.map(row => {
-        const studyId = (row.studyNumber || "").toString().trim();
+        const studyId = (row.oraStudyId || "").toString().trim();
         const match = milestoneMap[studyId];
 
         return {
