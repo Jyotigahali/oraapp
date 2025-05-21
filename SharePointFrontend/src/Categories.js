@@ -12,7 +12,7 @@ function Categories(props) {
   const [ScenerioTwo, setScenerioTwo] = useState([]);
   const [ScenerioThree, setScenerioThree] = useState([]) 
   const { currentData, loading,setCurrentPage,currentPage,errorFile, craData } = props;
-  console.log("currentData", currentData);
+  // console.log("currentData", currentData);
   useEffect(() => {
     if(activeTab === 'region' && currentData.length > 0) {
       const rolledUpByRegion = Object.values(
@@ -25,7 +25,7 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem: `${oraStudyId} - ${protocol}`,
+              WorkItem: protocol ? `${oraStudyId} - ${protocol}` : "oraStudyId",
               activity: phase,
               role: resource,
               start : plannedStart,
@@ -49,7 +49,7 @@ function Categories(props) {
       
       // Convert the object back to an array
       let newArray = Object.values(rolledUpByRegion);
-      console.log("rolledUp", newArray);  
+      console.log("rolledUp_region", newArray);  
       setScenerioOne(newArray);
     }
 
@@ -65,7 +65,7 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem: `${oraStudyId} - ${protocol}`,
+              WorkItem:protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
               activity: phase,
               role: country ? `${region}-${country}` : region,
               start : plannedStart,
@@ -85,22 +85,20 @@ function Categories(props) {
       );
 
       let newArray = Object.values(rolledUpByCountry);
-      console.log("rolledUp", newArray);
+      console.log("rolledUp_country", newArray);
       setScenerioTwo(newArray);
     }
 
-    // if(activeTab === 'CRA/LCRA' && currentData.length > 0) {
+    // if(activeTab === 'CRA/LCRA' && craData.length > 0) {
+    //   console.log("craData", craData);
     //   const rolledUpByCRA = Object.values(
-    //     currentData.reduce((acc, curr) => {
+    //     craData.reduce((acc, curr) => {
     //       const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
-    //       const [rolePrefix, regionCode] = resource.split("-");
-    //       const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
+    //       // const [rolePrefix, regionCode] = resource.split("-");
+    //       // const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
     //       // Key to group by: combination of resource + oraStudyId + protocol
-    //       if(isCRAType){
-
-    //       }
-    //       const key = `${resource}|${oraStudyId}|${protocol}`;
-    //       const region = resource.split("-")[0]
+    //       const key = `${resource}|${oraStudyId}|${protocol}|${phase}`;
+    //       // const region = resource.split("-")[0]
     //       if (!acc[key]) {
     //         acc[key] = {
     //           ...rest, // All other fields (Department, Sponsor, etc.)
@@ -124,10 +122,10 @@ function Categories(props) {
     //     }, {})
     //   );
     //   let newArray = Object.values(rolledUpByCRA);
-    //   console.log("rolledUpCRA/LCRA", newArray);  
+    //   console.log("rolledUp_CRA/LCRA", newArray);  
     //   setScenerioThree(newArray);
     // }
-  }, [activeTab, currentData]);
+  }, [activeTab, currentData, craData]);
 
   const exportToCSV = (data, fileName) => {
     const ws = XLSX.utils.json_to_sheet(data);
@@ -196,7 +194,7 @@ function Categories(props) {
              <Button className="my-3" onClick={() => exportToCSV(errorFile, "exporteErrorFile.csv")}>
             Export  error CSV
           </Button>
-             <Button className="my-3" onClick={() => exportToCSV(craData, "exporteErrorFile.csv")}>
+             <Button className="my-3" onClick={() => exportToCSV(craData, "exporteCRA/LCRAFile.csv")}>
             Export  CRA File
           </Button>
 
@@ -275,7 +273,7 @@ function Categories(props) {
         </div>}
         {activeTab === 'region' && ScenerioOne.length > 0 && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
         {activeTab === 'country' && ScenerioTwo.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {activeTab === 'CRA/LCRA' && ScenerioThree.length > 0 && <div className="tab-pane active">Content for Tab 4</div>}
+        {/* {activeTab === 'CRA/LCRA' && ScenerioThree.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioThree} exportToCSV={exportToCSV} activeTab={activeTab} /></div>} */}
       </div>
     </div>
   );

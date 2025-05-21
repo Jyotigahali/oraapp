@@ -7,7 +7,6 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
   console.log("RollupTable data", data);
   const handleExportDemand = (data) => {
     const csvData = data.map(item => ({
-
       WorkItem: item.WorkItem,
       Activity: item.activity,
       Begin: item.start,
@@ -111,6 +110,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
             <th># of Countries</th>
             <th>Resource Region</th>
             <th>Name of Country</th>
+            <th>Indecation</th>
             {/* Add any other columns you want to display */}
           </tr>
         </thead>
@@ -133,6 +133,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{row.noOfCountries}</td>
               <td>{row.resourceRegion}</td>
               <td>{row.nameOfCountries}</td>
+              <td>{row.Indication}</td>
               {/* Add more <td> if needed */}
             </tr>
           ))}
