@@ -565,8 +565,8 @@ function App() {
 
 
   return (
-    <div className="container mt-4">
-      <h3>Import Excel Files</h3>
+    <div className="m-4">
+      <h3>Import All Active Excel Files</h3>
       <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
       {loading && <Spinner animation="border" className="mt-3" />}
       <div className="mt-3">
@@ -574,15 +574,15 @@ function App() {
         <input type="file" accept=".xlsx,.xls,.csv" onChange={handleMilestoneUpload} />
       </div>
       <div className="mt-3">
-        <label><strong>Upload studty Country</strong></label>
+        <label><strong>Upload Study Country & Site</strong></label>
         <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
       </div>
       <div className="mt-3">
-        <label><strong>Upload Study File</strong></label>
+        <label><strong>Upload Active Study File</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleStudyUpload} />
       </div>
       <div className="mt-3">
-        <label><strong>Upload Schedule Level Milestone</strong></label>
+        <label><strong>Upload Schedule Level Milestone Meta</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
       <Categories errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />

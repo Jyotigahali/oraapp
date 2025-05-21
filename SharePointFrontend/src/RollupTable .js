@@ -79,12 +79,12 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     const daysInEndMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
     const endMonthDaysUsed = end.getDate();
     const endPartial = endMonthDaysUsed / daysInEndMonth;
-    let months = (fullMonths + startPartial + endPartial - 1).toFixed(3); // subtract 1 because we counted both full ends
-    const fte = ((totalHrs / months) / 151.55).toFixed(2);
-    return fte;
+    let months = (fullMonths + startPartial + endPartial - 1).toFixed(4); // subtract 1 because we counted both full ends
+    const fte = ((totalHrs / months) / 151.55).toFixed(3);
+    return fte
   }
   return (
-    <div className="container mt-3">
+    <div className="mt-3">
       <Button className="m-2" onClick={ () => handleExportDemand(data)}>
             Export as CSV For RM: Demand
       </Button>
@@ -107,10 +107,10 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
             <th>Sponsor</th>
             <th>Project Status</th>
             <th>FTE</th>
-            <th>#ofSite</th>
-            <th>#ofCountries</th>
+            <th># of Sites</th>
+            <th># of Countries</th>
             <th>Resource Region</th>
-            <th>_Name of Country</th>
+            <th>Name of Country</th>
             {/* Add any other columns you want to display */}
           </tr>
         </thead>

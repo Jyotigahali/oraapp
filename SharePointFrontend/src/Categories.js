@@ -148,7 +148,7 @@ function Categories(props) {
 
   
   return (
-    <div className="container mt-4">
+    <div className="mt-4">
       <ul className="nav nav-tabs">
       <li className="nav-item">
           <button
@@ -202,7 +202,7 @@ function Categories(props) {
               <tr>
                 <th>Sl. No</th>
                 <th>Protocol</th>
-                <th>ora Study ID</th>
+                <th>Ora_Study_ID</th>
                 <th>Service</th>
                 <th># Units</th>
                 <th>Hrs per Unit</th>
@@ -272,7 +272,7 @@ function Categories(props) {
         </div>}
         {activeTab === 'region' && ScenerioOne.length > 0 && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
         {activeTab === 'country' && ScenerioTwo.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {activeTab === 'tab4' && ScenerioThree.length > 0 && <div className="tab-pane active">Content for Tab 4</div>}
+        {activeTab === 'CRA/LCRA' && ScenerioThree.length > 0 && <div className="tab-pane active">Content for Tab 4</div>}
       </div>
     </div>
   );
