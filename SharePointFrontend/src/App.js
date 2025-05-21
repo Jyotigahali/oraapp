@@ -16,7 +16,7 @@ function App() {
   const [resourceData, setResourceData] = useState([]);
   const [expandedData, setExpandedData] = useState([]);
   const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
-
+   const[cradata, setCraData] = useState([]);
 
 
   // You can change this to 25, 50, etc.
@@ -297,7 +297,10 @@ function App() {
       const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
       setStudyCountry(countryTable);
-      console.log("📁 Study Country Data:", countryTable);
+     const cradata = handleCra(data, countryTable);
+    setCraData(cradata);
+    console.log("📁 cra data aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", cradata);
+      
 
       const regionMap = {
         NA: ["Canada", "Mexico", "United States"],
@@ -388,12 +391,12 @@ function App() {
       //   }
       // });
 
-   
 
-       console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
+
+      console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
 
       // // Step 2: Now call helper to calculate revisedDemand & update
-       calculateRevisedDemand(dataWithExpandedCountryAndSite);
+      calculateRevisedDemand(dataWithExpandedCountryAndSite);
     };
 
     reader.readAsArrayBuffer(file);
@@ -433,7 +436,7 @@ function App() {
         serviceMap[service].hasSiteOrCountry = true;
       }
 
-      console.log(`🛠 Service: ${service}, SiteCount: ${siteCount}, TotalHrs: ${totalHrs}`);
+      //console.log(`🛠 Service: ${service}, SiteCount: ${siteCount}, TotalHrs: ${totalHrs}`);
     });
 
     // Step 2: Calculate RevisedDemandFactor and RevisedDemand per row
@@ -458,9 +461,9 @@ function App() {
         revisedDemand = revisedDemandFactor * totalHrs;
       }
 
-      console.log(`🔢 Row ${index + 1} | Service: ${service}, Resource: ${resource}`);
-      console.log(`    → SiteCount: ${siteCount}, Total Sites: ${totalSites}, Total Hrs: ${totalHrs}`);
-      console.log(`    → RevisedDemandFactor: ${revisedDemandFactor.toFixed(3)}, RevisedDemand: ${revisedDemand.toFixed(3)}`);
+      // console.log(`🔢 Row ${index + 1} | Service: ${service}, Resource: ${resource}`);
+      // console.log(`    → SiteCount: ${siteCount}, Total Sites: ${totalSites}, Total Hrs: ${totalHrs}`);
+      // console.log(`    → RevisedDemandFactor: ${revisedDemandFactor.toFixed(3)}, RevisedDemand: ${revisedDemand.toFixed(3)}`);
 
       updatedRows.push({
         ...row,
@@ -478,6 +481,49 @@ function App() {
     updateData(updatedRows); // Update table or UI with new data
   }
 
+  function handleCra(data, countryTable) {
+    const result = [];
+   console.log("📁 Study Country Data countryTable:", countryTable)
+   console.log("📁 Study Country Data data:", data);
+    data.forEach((row) => {
+      const { resource = "", oraStudyId } = row;
+
+      // Check if resource includes CRA or LCRA (even CRA-NA, LCRA-APAC, etc.)
+      const resourcePrefix = resource.split("-")[0].trim().toUpperCase();
+      if (resourcePrefix === "CRA" || resourcePrefix === "LCRA") {
+        // Find all matching active site rows in countryTable for the oraStudyId
+        const matchingRows = countryTable.filter(entry =>
+          entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim() &&
+          entry["Site Status"]?.toLowerCase() === "active"
+        );
+
+        // Map each matching Study Country to a count of active sites
+        const countrySiteMap = {};
+        matchingRows.forEach(entry => {
+          const country = entry["Study Country"]?.trim();
+          if (country) {
+            countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
+          }
+        });
+
+        // Add a row per CRA country with its site count
+        Object.entries(countrySiteMap).forEach(([country, siteCount]) => {
+           const {
+          country: _c, site: _s, revisedDemand: _r, totalSites: _ts, totalServiceHrs: _th, // unwanted fields
+          ...cleanRow
+        } = row;
+          result.push({
+            ...cleanRow,
+            CraCountry: country,
+            CraSite: siteCount
+          });
+        });
+      }
+    });
+
+      
+    return result;
+  }
 
   const handleScheduleLevelMilestoneUpload = async (e) => {
     // Get the uploaded file from input
@@ -585,7 +631,7 @@ function App() {
         <label><strong>Upload Schedule Level Milestone Meta</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
-      <Categories errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Categories  craData={cradata} errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
   );
