@@ -25,7 +25,7 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem: protocol ? `${oraStudyId} - ${protocol}` : "oraStudyId",
+              WorkItem: protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
               activity: phase,
               role: resource,
               start : plannedStart,
