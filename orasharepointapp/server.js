@@ -17,6 +17,15 @@ const siteId = process.env.SITE_ID;
 const driveId = process.env.DRIVE_ID;
 const activeProjectsId = process.env.ACTIVEPROJECTS_ID
 const anteriorFolderId = process.env.ANTERIORFOLDER_ID
+const biometricsOnlyFolderId = process.env.BIOMETRICS_ONLY_FOLDER_ID
+const medicalDevicesFolderId = process.env.MEDICAL_DEVICE_FOLDER_ID
+const posteriorFolderId = process.env.POSTERIOR_FOLDER_ID
+const folderIds = [
+  {id:anteriorFolderId, name: "01. Anterior"},
+  {id:biometricsOnlyFolderId, name: "02. Biometrics Only"},
+  {id:medicalDevicesFolderId, name: "03. Medical Devices"}, 
+  {id:posteriorFolderId, name: "04. Posterior"}
+];
 // ------------------- NEW ENDPOINT -------------------
 // async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles) {
 //   const res = await axios.get(
@@ -53,7 +62,7 @@ const anteriorFolderId = process.env.ANTERIORFOLDER_ID
 // }
 
 let matchedFilesCount = 0
-async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles, fileLimit = 10) {
+async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles, folderName) {
   const res = await axios.get(
     `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -62,7 +71,7 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
   for (const item of res.data.value) {
     if (item.folder) {
       console.log(`Entering folder: ${item.name}`);
-      getValidFilesRecursively(siteId, driveId, item.id, token, matchingFiles, fileLimit);
+      getValidFilesRecursively(siteId, driveId, item.id, token, matchingFiles, folderName);
     } else {
       try {
         const fieldRes = await axios.get(
@@ -79,6 +88,7 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
             id: item.id,
             webUrl: item.webUrl,
             currentVersion: fields.Current_Version,
+            folderName: folderName,
           });
         // DOWNLOAD the file
         const fileResponse = await axios.get(
@@ -90,8 +100,8 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
         );
         const downloadPath = path.join(os.homedir(), "Downloads", item.name);
         fs.writeFileSync(downloadPath, fileResponse.data);
-        console.log(`Saved to system Downloads folder: ${downloadPath}`);        
-        }       
+        console.log(` ${matchingFiles.length} Saved to system Downloads folder: ${downloadPath}`);        
+        }
       } catch (err) {
         console.warn(`Skipping file (no fields found): ${item.name}`);
       }
@@ -127,14 +137,20 @@ app.get("/api/fetch-files", async (req, res) => {
     // if (!activeProjects) throw new Error('"1. Active Projects" folder not found');
     
     // const activeChildren = await axios.get(
-    //   `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${activeProjects.id}/children`,
+    //   `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${activeProjectsId}/children`,
     //   { headers: { Authorization: `Bearer ${token}` } }
     // );
     // const anteriorFolder = activeChildren.data.value.find(item => item.name === "01. Anterior");
     // if (!anteriorFolder) throw new Error('"Anterior" folder not found under "1. Active Projects"');
     // console.log("siteId",siteId,"driveId", driveId,"activeProjects.id",activeProjects.id, "anteriorFolder.id", anteriorFolder.id)
     const matchingFiles = [];
-    await getValidFilesRecursively(siteId, driveId, anteriorFolderId, token, matchingFiles);
+    folderIds.forEach(async folder => {
+      console.log("folderId", folder.id, "folderName", folder.name)
+      await getValidFilesRecursively(siteId, driveId, folder.id, token, matchingFiles,folder.name);
+      // await getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles);
+    }
+    )
+    // await getValidFilesRecursively(siteId, driveId, anteriorFolderId, token, matchingFiles);
     // await exportMatchingFilesToExcel(matchingFiles);
     res.json(matchingFiles);
     console.log("Successfully downloaded active files and matched files")
@@ -154,6 +170,7 @@ async function exportMatchingFilesToExcel(matchingFiles) {
   worksheet.columns = [
     { header: "File Name", key: "name" },
     { header: "Ora Study ID", key: "oraStudyId", width: 30 },
+    { header: "Folder Name", key: "folderName", width: 30 },
     // { header: "File ID", key: "id" },
     // { header: "Web URL", key: "webUrl", width: 50 },
     // { header: "Current Version", key: "currentVersion", width: 20 },

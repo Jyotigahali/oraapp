@@ -14,6 +14,7 @@ function Categories(props) {
   const { currentData, loading,setCurrentPage,currentPage,errorFile, craData } = props;
   // console.log("currentData", currentData);
   useEffect(() => {
+    // localStorage.setItem("currentData1", JSON.stringify(currentData));
     if(activeTab === 'region' && currentData.length > 0) {
       const rolledUpByRegion = Object.values(
         currentData.reduce((acc, curr) => {
@@ -30,7 +31,7 @@ function Categories(props) {
               role: resource,
               start : plannedStart,
               end : plannedEnd,
-              resourceRegion: country ? `${region}-${country}` : region,
+              resourceRegion: country ? `${region}-${country}` : '',
               totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
@@ -67,7 +68,7 @@ function Categories(props) {
               resource,
               WorkItem:protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
               activity: phase,
-              role: country ? `${region}-${country}` : region,
+              role: country ? `${region}-${country}` : '',
               start : plannedStart,
               end : plannedEnd,
               totalHrs: 0,

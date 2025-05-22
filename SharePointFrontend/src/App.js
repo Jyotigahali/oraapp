@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { Table, Button, Spinner, Pagination } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
+import axios from "axios";
 
 function App() {
   const [data, setData] = useState([]);
@@ -31,7 +32,7 @@ function App() {
   //   axios.get("http://localhost:3001/api/fetch-files")
   //     .then((response) => {
   //       // setFiles(response.data);
-  //       console.log("📁 Files:", response.data);
+  //       console.log("📁 Files:", response);
   //       setLoading(false);
   //       setTimeout(() => {
   //         alert("All Active Files saved to system Downloads folder")
