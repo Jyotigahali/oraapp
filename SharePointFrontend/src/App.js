@@ -16,7 +16,7 @@ function App() {
   const [resourceData, setResourceData] = useState([]);
   const [expandedData, setExpandedData] = useState([]);
   const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
-   const[cradata, setCraData] = useState([]);
+  const [cradata, setCraData] = useState([]);
 
 
   // You can change this to 25, 50, etc.
@@ -297,10 +297,10 @@ function App() {
       const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
       setStudyCountry(countryTable);
-     const cradata = handleCra(data, countryTable);
-    setCraData(cradata);
-    console.log("📁 cra data aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", cradata);
-      
+      const cradata = handleCra(data, countryTable);
+      setCraData(cradata);
+      console.log("📁 cra data aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", cradata);
+
 
       const regionMap = {
         NA: ["Canada", "Mexico", "United States"],
@@ -483,47 +483,42 @@ function App() {
 
   function handleCra(data, countryTable) {
     const result = [];
-   console.log("📁 Study Country Data countryTable:", countryTable)
-   console.log("📁 Study Country Data data:", data);
+    console.log("📁 Study Country Data countryTable:", countryTable);
+    console.log("📁 Study Country Data data:", data);
+
     data.forEach((row) => {
       const { resource = "", oraStudyId } = row;
 
       // Check if resource includes CRA or LCRA (even CRA-NA, LCRA-APAC, etc.)
       const resourcePrefix = resource.split("-")[0].trim().toUpperCase();
       if (resourcePrefix === "CRA" || resourcePrefix === "LCRA") {
-        // Find all matching active site rows in countryTable for the oraStudyId
+        // Find all matching active site rows in countryTable for this study
         const matchingRows = countryTable.filter(entry =>
           entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim() &&
           entry["Site Status"]?.toLowerCase() === "active"
         );
 
-        // Map each matching Study Country to a count of active sites
-        const countrySiteMap = {};
+        // Create one row per active site
         matchingRows.forEach(entry => {
-          const country = entry["Study Country"]?.trim();
-          if (country) {
-            countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
-          }
-        });
+          const {
+            country: _c, site: _s, revisedDemand: _r, totalSites: _ts, totalServiceHrs: _th, // unwanted fields
+            ...cleanRow
+          } = row;
 
-        // Add a row per CRA country with its site count
-        Object.entries(countrySiteMap).forEach(([country, siteCount]) => {
-           const {
-          country: _c, site: _s, revisedDemand: _r, totalSites: _ts, totalServiceHrs: _th, // unwanted fields
-          ...cleanRow
-        } = row;
           result.push({
             ...cleanRow,
-            CraCountry: country,
-            CraSite: siteCount
+            CraCountry: entry["Study Country"]?.trim(),
+            CraSite: entry["Study Site Number"]?.trim(),
+            revisedDemand: ""  // Optional placeholder
           });
         });
       }
     });
 
-      
     return result;
   }
+
+
 
   const handleScheduleLevelMilestoneUpload = async (e) => {
     // Get the uploaded file from input
@@ -631,7 +626,7 @@ function App() {
         <label><strong>Upload Schedule Level Milestone Meta</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
       </div>
-      <Categories  craData={cradata} errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Categories craData={cradata} errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
   );
