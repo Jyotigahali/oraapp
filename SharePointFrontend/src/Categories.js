@@ -211,6 +211,9 @@ function Categories(props) {
                 <th>Hrs per Unit</th>
                 <th>Total Hrs</th>
                 <th>Resource</th>
+                <th>Role</th>
+                <th>Region</th>
+                {/* <th>Work Item</th> */}
                 <th>Phase</th>
                 <th>Planned Start Date</th>
                 <th>Planned Finish Date</th>
@@ -237,6 +240,8 @@ function Categories(props) {
                   <td>{row.hrsPerUnit}</td>
                   <td>{row.totalHrs}</td>
                   <td>{row.resource}</td>
+                  <td>{row.role}</td>
+                  <td>{row.region}</td>
                   <td>{row.phase}</td>
                   <td>{row.plannedStart || ""}</td>
                   <td>{row.plannedEnd || ""}</td>

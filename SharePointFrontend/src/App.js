@@ -105,7 +105,11 @@ function App() {
         );
         const protocolValue = protocolIndex >= 0 ? protocolRow[protocolIndex + 1] : "N/A";
 
+
         filteredBudget.forEach((row, index) => {
+          const resource = row["Resource"] || "";
+          const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
+
           allData.push({
             slno: allData.length + 1,
             protocol: protocolValue,
@@ -115,7 +119,9 @@ function App() {
             units: row["# Units"] || row["Units"] || "",
             hrsPerUnit: row["Hrs per Unit"] || "",
             totalHrs: row["Total Hrs"] || "",
-            resource: row["Resource"] || "",
+            resource: resource,
+            role: role,
+            region: region,
             phase: row["Phase"] || "",
           });
         });
@@ -358,40 +364,6 @@ function App() {
           });
         }
       });
-
-      // const finalData = [];
-
-      // dataWithExpandedCountryAndSite.forEach(row => {
-      //   const { resource = "", oraStudyId = "", country = "", site = "" } = row;
-
-      //   const [rolePrefix, regionCode] = resource.split("-");
-      //   const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
-
-      //   if (isCRAType && site !== "0" && country) {
-      //     const regionCountries = regionMap[regionCode];
-
-      //     const matchingEntries = countryTable.filter(entry =>
-      //       entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() &&
-      //       entry["Site Status"]?.toLowerCase() === "active" &&
-      //       regionCountries?.includes(entry["Study Country"])
-      //     );
-
-      //     if (matchingEntries.length > 0) {
-      //       matchingEntries.forEach(() => {
-      //         finalData.push({
-      //           ...row,
-      //           country: country,
-      //           site: "1"
-      //         });
-      //       });
-      //     } else {
-      //       finalData.push(row);
-      //     }
-      //   } else {
-      //     finalData.push(row);
-      //   }
-      // });
-
 
 
       console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
