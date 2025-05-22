@@ -26,18 +26,18 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem: protocol ? `${oraStudyId} - ${protocol}` : "oraStudyId",
+              WorkItem: protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
               activity: phase,
               role: resource,
               start : plannedStart,
               end : plannedEnd,
-              resourceRegion: country ? `${region}-${country}` : resource,
+              resourceRegion:  country ? `${region}-${country}` : resource,
               totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
-              region: country,
               oraStudyId,
               protocol,
+              country
           }
         }
           acc[key].totalHrs += totalHrs;
@@ -69,12 +69,14 @@ function Categories(props) {
               WorkItem:protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
               activity: phase,
               role: country ? `${region}-${country}` : resource,
+              resourceRegion: country ? `${region}-${country}` : resource,
               start : plannedStart,
               end : plannedEnd,
               totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
-              region: country,
+              region: resource.split("-")[1],
+              country
           }
         }
           acc[key].totalHrs += totalHrs;

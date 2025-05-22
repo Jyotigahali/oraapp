@@ -17,9 +17,8 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       CID: "",
       MID:"",
       MIM:"",
-      Region: item.region,
-      
       "_Resource Region": item.resourceRegion,
+      Region: item.region,
       // "_Therapeutic Area":  item.therapeuticArea,
       _Department: item.Department,
       _Sponsor: item.Sponsor,
@@ -44,6 +43,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       End: item.end,
       // Role: item.role,
       "Resource Region": item.role,
+      Region: item.region,
     //  "Therapeutic Area":  item.therapeuticArea,
       Department: item.Department,
       Sponsor: item.Sponsor,
@@ -111,6 +111,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
             <th># of Sites</th>
             <th># of Countries</th>
             <th>Resource Region</th>
+            <th>Region</th>
             <th>Name of Country</th>
             <th>Indecation</th>
             {/* Add any other columns you want to display */}
@@ -126,7 +127,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{row.start}</td>
               <td>{row.end}</td>
               <td>{row.totalHrs}</td>
-              <td>{row.region}</td>
+              <td>{row.country}</td>
               <td>{row.Department}</td>
               <td>{row.Sponsor}</td>
               <td>{row.currentProjectStatus}</td>
@@ -134,6 +135,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{row.noOfSites}</td>
               <td>{row.noOfCountries}</td>
               <td>{row.resourceRegion}</td>
+              <td>{row.region}</td>
               <td>{row.nameOfCountries}</td>
               <td>{row.Indication}</td>
               {/* Add more <td> if needed */}
