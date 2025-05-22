@@ -17,6 +17,8 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       CID: "",
       MID:"",
       MIM:"",
+      Region: item.region,
+      
       "_Resource Region": item.resourceRegion,
       // "_Therapeutic Area":  item.therapeuticArea,
       _Department: item.Department,

@@ -20,7 +20,7 @@ function Categories(props) {
         currentData.reduce((acc, curr) => {
           const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
           // Key to group by: combination of resource + oraStudyId + protocol
-          const key = `${resource}|${oraStudyId}|${protocol}|${phase}`;
+          const key = `${resource}|${oraStudyId}|${phase}`;
           const region = resource.split("-")[0]
           if (!acc[key]) {
             acc[key] = {
@@ -31,7 +31,7 @@ function Categories(props) {
               role: resource,
               start : plannedStart,
               end : plannedEnd,
-              resourceRegion: country ? `${region}-${country}` : '',
+              resourceRegion: country ? `${region}-${country}` : resource,
               totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
@@ -60,7 +60,7 @@ function Categories(props) {
           const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
       
           // Key to group by: combination of resource + oraStudyId + protocol
-          const key = `${country}|${oraStudyId}|${protocol}|${phase}`;
+          const key = `${country}|${oraStudyId}|${phase}`;
           const region = resource.split("-")[0]
           if (!acc[key]) {
             acc[key] = {
@@ -68,7 +68,7 @@ function Categories(props) {
               resource,
               WorkItem:protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
               activity: phase,
-              role: country ? `${region}-${country}` : '',
+              role: country ? `${region}-${country}` : resource,
               start : plannedStart,
               end : plannedEnd,
               totalHrs: 0,
@@ -98,7 +98,7 @@ function Categories(props) {
     //       // const [rolePrefix, regionCode] = resource.split("-");
     //       // const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
     //       // Key to group by: combination of resource + oraStudyId + protocol
-    //       const key = `${resource}|${oraStudyId}|${protocol}|${phase}`;
+    //       const key = `${resource}|${oraStudyId}|${phase}`;
     //       // const region = resource.split("-")[0]
     //       if (!acc[key]) {
     //         acc[key] = {
