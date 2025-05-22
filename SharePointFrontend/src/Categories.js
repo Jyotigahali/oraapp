@@ -194,12 +194,9 @@ function Categories(props) {
              <Button className="my-3" onClick={() => exportToCSV(errorFile, "exporteErrorFile.csv")}>
             Export  error CSV
           </Button>
-<<<<<<< HEAD
-             <Button className="my-3" onClick={() => exportToCSV(craData, "exporteCraFile.csv")}>
-=======
+
              <Button className="my-3" onClick={() => exportToCSV(craData, "exporteCRA/LCRAFile.csv")}>
->>>>>>> 9ee493c9591c41d0caf087a84d49e59c9f351596
-            Export  CRA File
+               Export  CRA File
           </Button>
 
           <Table striped bordered hover>
