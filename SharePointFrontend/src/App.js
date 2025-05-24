@@ -86,10 +86,16 @@ function App() {
         const budgetJson = XLSX.utils.sheet_to_json(budgetSheet, { defval: "" });
 
 
+        // const filteredBudget = budgetJson.filter((row) => {
+        //   const oraTask = (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes";
+        //   const totalHrs = parseFloat(row["Total Hrs"]);
+        //   return oraTask && !isNaN(totalHrs) && totalHrs > 0;
+        // });
         const filteredBudget = budgetJson.filter((row) => {
-          const oraTask = (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes";
+          const resource = (row["Resource"] || "").toString().trim();
+          const phase = (row["Phase"] || "").toString().trim();
           const totalHrs = parseFloat(row["Total Hrs"]);
-          return oraTask && !isNaN(totalHrs) && totalHrs > 0;
+          return resource && phase && !isNaN(totalHrs) && totalHrs > 0;
         });
 
 
