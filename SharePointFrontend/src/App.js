@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
-import { Table, Button, Spinner, Pagination } from "react-bootstrap";
+import { Spinner, } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
-import axios from "axios";
 
 function App() {
   const [data, setData] = useState([]);
@@ -311,9 +310,9 @@ function App() {
 
       setStudyCountry(countryTable);
       const cradata = handleCra(data, countryTable);
-      setCraData(cradata);
-      console.log("📁 cra data aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", cradata);
-
+      const finalCraData = addCraRevisedDemand(cradata);
+      setCraData(finalCraData);
+      console.log("📁 Study Country Data:", finalCraData);
 
       const regionMap = {
         NA: ["Canada", "Mexico", "United States"],
@@ -496,6 +495,47 @@ function App() {
 
     return result;
   }
+function addCraRevisedDemand(craData) {
+  const updated = [];
+
+  // Step 1: Count number of sites per (oraStudyId + service)
+  const groupMap = {};
+
+  craData.forEach(row => {
+    const studyId = row.oraStudyId?.trim();
+    const service = row.service?.trim();
+
+    if (!studyId || !service) return;
+
+    const key = `${studyId}__${service}`;
+    if (!groupMap[key]) {
+      groupMap[key] = { count: 0 };
+    }
+
+    groupMap[key].count += 1; // each row = 1 site
+  });
+
+  // Step 2: Calculate revised demand
+  craData.forEach(row => {
+    const studyId = row.oraStudyId?.trim();
+    const service = row.service?.trim();
+    const totalHrs = parseFloat(row.totalHrs) || 0;
+
+    const key = `${studyId}__${service}`;
+    const totalSites = groupMap[key]?.count || 1;
+
+    const craRevisedDemand = (1 / totalSites) * totalHrs;
+
+    updated.push({
+      ...row,
+      totalSites,
+      craRevisedDemand: craRevisedDemand.toFixed(2),
+    });
+  });
+
+  return updated;
+}
+
 
 
 
