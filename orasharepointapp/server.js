@@ -22,45 +22,10 @@ const medicalDevicesFolderId = process.env.MEDICAL_DEVICE_FOLDER_ID
 const posteriorFolderId = process.env.POSTERIOR_FOLDER_ID
 const folderIds = [
   {id:anteriorFolderId, name: "01. Anterior"},
-  {id:biometricsOnlyFolderId, name: "02. Biometrics Only"},
+  // {id:biometricsOnlyFolderId, name: "02. Biometrics Only"},
   {id:medicalDevicesFolderId, name: "03. Medical Devices"}, 
   {id:posteriorFolderId, name: "04. Posterior"}
 ];
-// ------------------- NEW ENDPOINT -------------------
-// async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles) {
-//   const res = await axios.get(
-//     `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`,
-//     { headers: { Authorization: `Bearer ${token}` } }
-//   );
-
-//   for (const item of res.data.value) {
-//     if (item.folder) {
-//       console.log(`Entering folder: ${item.name}`);
-//       await getValidFilesRecursively(siteId, driveId, item.id, token, matchingFiles);
-//     } else {
-//       try {
-//         const fieldRes = await axios.get(
-//           `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${item.id}/listItem/fields`,
-//           { headers: { Authorization: `Bearer ${token}` } }
-//         );
-
-//         const fields = fieldRes.data;
-//         if (fields.Current_Version === true && fields.Ora_Study_ID) {
-//           matchingFiles.push({
-//             name: item.name,
-//             id: item.id,
-//             webUrl: item.webUrl,
-//             currentVersion: fields.Current_Version,
-//             oraStudyId: fields.Ora_Study_ID
-//           });
-//         }
-//       } catch (err) {
-//         console.warn(`Skipping file (no fields found): ${item.name}`);
-//       }
-//     }
-//   }
-// }
-
 let matchedFilesCount = 0
 async function getValidFilesRecursively(siteId, driveId, folderId, token, matchingFiles, folderName) {
   const res = await axios.get(
@@ -107,9 +72,9 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
       }
     }
   }
-  if(matchingFiles.length === matchedFilesCount){
+  // if(matchingFiles.length === matchedFilesCount){
     exportMatchingFilesToExcel(matchingFiles);
-  }
+  // }
   console.log("maching files length " , matchingFiles.length, matchedFilesCount)
 }
 

@@ -4,6 +4,7 @@ import { Table, Button, Spinner, Pagination } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
 import axios from "axios";
+import { uniqueFiles } from "./uniqueFiles";
 
 function App() {
   const [data, setData] = useState([]);
@@ -46,70 +47,77 @@ function App() {
   // }, []);
 
   // ... your handleFileUpload remains the same, just call `updateData(flatData)` instead of `setData(flatData)`
-  const handleFileUpload = async (e) => {
+ const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-
+ 
     setLoading(true);
     const allData = [];
-
+ 
     for (const file of files) {
       console.log(`Processing file: ${file.name}`);
       console.log('setStudyData', studyData);
-
+ 
       // Lookup Ora Study ID from studyData using file name
       const studyMatch = studyData.find(
         (s) => (s["File Name"] || "").trim().toLowerCase() === file.name.trim().toLowerCase()
       );
       const oraStudyId = studyMatch ? studyMatch["Ora Study ID"] : "N/A";
-
+ 
       try {
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "buffer" });
-
+ 
         const sheetNames = workbook.SheetNames.map((name) => name.toLowerCase());
+        console.log(`Sheet names in ${file.name}:`, sheetNames);
         const budgetSheetName =
           sheetNames.find((s) => s.includes("study budget")) ||
           sheetNames.find((s) => s.includes("internal budget"));
         const specsSheetName = sheetNames.find((s) => s.includes("study specs"));
-
+        console.log(`Found budget sheet: ${budgetSheetName}`);
         if (!budgetSheetName || !specsSheetName) {
           console.warn(`Missing expected sheets in file: ${file.name}`);
           continue;
         }
-
+ 
         const budgetSheet = workbook.Sheets[workbook.SheetNames.find(name =>
           name.toLowerCase() === budgetSheetName)];
         const specsSheet = workbook.Sheets[workbook.SheetNames.find(name =>
           name.toLowerCase() === specsSheetName)];
-
+ 
         const budgetJson = XLSX.utils.sheet_to_json(budgetSheet, { defval: "" });
-
-
+ 
+ 
+        // const filteredBudget = budgetJson.filter((row) => {
+        //   const oraTask = (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes";
+        //   const totalHrs = parseFloat(row["Total Hrs"]);
+        //   return oraTask && !isNaN(totalHrs) && totalHrs > 0;
+        // });
         const filteredBudget = budgetJson.filter((row) => {
-          const oraTask = (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes";
+          const resource = (row["Resource"] || "").toString().trim();
+          const phase = (row["Phase"] || "").toString().trim();
           const totalHrs = parseFloat(row["Total Hrs"]);
-          return oraTask && !isNaN(totalHrs) && totalHrs > 0;
+          return resource && phase && !isNaN(totalHrs) && totalHrs > 0;
         });
-
-
-
+ 
+ 
+ 
         const specsRange = XLSX.utils.sheet_to_json(specsSheet, {
           header: 1,
           defval: "",
         });
-
+ 
         const protocolRow = specsRange[3]; // 4th row (0-indexed)
         const protocolIndex = protocolRow?.findIndex((cell) =>
           (cell || "").toString().toLowerCase().includes("protocol")
         );
         const protocolValue = protocolIndex >= 0 ? protocolRow[protocolIndex + 1] : "N/A";
-
-
+ 
+ 
         filteredBudget.forEach((row, index) => {
           const resource = row["Resource"] || "";
           const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
-
+ 
           allData.push({
             slno: allData.length + 1,
             protocol: protocolValue,
@@ -129,7 +137,7 @@ function App() {
         console.error(`Error processing file ${file.name}:`, error);
       }
     }
-
+ 
     console.log(allData); // Final processed data with fileName and oraStudyId
     updateData(allData);
     setLoading(false);
@@ -152,7 +160,7 @@ function App() {
         defval: "",
         cellDates: true,
       });
-
+      // uniqueFiles(json,studyData);
       // Excel date parser
       const parseExcelDate = (value) => {
         if (typeof value === "number") {
@@ -302,7 +310,7 @@ function App() {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
+      // uniqueFiles(countryTable,studyData);
       setStudyCountry(countryTable);
       const cradata = handleCra(data, countryTable);
       setCraData(cradata);
@@ -445,7 +453,7 @@ function App() {
         revisedDemand: revisedDemand.toFixed(3),
         //countryDemand: revisedDemand.toFixed(3),
         totalSites: totalSites,
-        totalServiceHrs: serviceData.totalHours.toFixed(2)
+        totalServiceHrs: serviceData?.totalHours?.toFixed(2)
       });
     });
 
@@ -518,7 +526,7 @@ function App() {
 
       // Convert worksheet into JSON (raw array of objects)
       const rawMilestoneData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
+      // uniqueFiles(rawMilestoneData, studyData);
       // Clean up column headers: trim keys
       const milestoneData = rawMilestoneData.map(entry => {
         const cleanedEntry = {};
