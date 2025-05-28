@@ -22,7 +22,7 @@ const medicalDevicesFolderId = process.env.MEDICAL_DEVICE_FOLDER_ID
 const posteriorFolderId = process.env.POSTERIOR_FOLDER_ID
 const folderIds = [
   {id:anteriorFolderId, name: "01. Anterior"},
-  {id:biometricsOnlyFolderId, name: "02. Biometrics Only"},
+  // {id:biometricsOnlyFolderId, name: "02. Biometrics Only"},
   {id:medicalDevicesFolderId, name: "03. Medical Devices"}, 
   {id:posteriorFolderId, name: "04. Posterior"}
 ];
@@ -107,9 +107,9 @@ async function getValidFilesRecursively(siteId, driveId, folderId, token, matchi
       }
     }
   }
-  if(matchingFiles.length === matchedFilesCount){
+  // if(matchingFiles.length === matchedFilesCount){
     exportMatchingFilesToExcel(matchingFiles);
-  }
+  // }
   console.log("maching files length " , matchingFiles.length, matchedFilesCount)
 }
 
