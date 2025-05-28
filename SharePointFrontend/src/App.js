@@ -72,24 +72,21 @@ function App() {
           sheetNames.find((s) => s.includes("internal budget"));
         const specsSheetName = sheetNames.find((s) => s.includes("study specs"));
 
-        if (!budgetSheetName || !specsSheetName) {
+        if (!budgetSheetName) {
           console.warn(`Missing expected sheets in file: ${file.name}`);
           continue;
         }
-
+        let protocolValue = "N/A";
         const budgetSheet = workbook.Sheets[workbook.SheetNames.find(name =>
           name.toLowerCase() === budgetSheetName)];
-        const specsSheet = workbook.Sheets[workbook.SheetNames.find(name =>
-          name.toLowerCase() === specsSheetName)];
+
+        const specsSheet = specsSheetName
+          ? workbook.Sheets[workbook.SheetNames.find(name =>
+            name.toLowerCase() === specsSheetName)]
+          : null;
 
         const budgetJson = XLSX.utils.sheet_to_json(budgetSheet, { defval: "" });
 
-
-        // const filteredBudget = budgetJson.filter((row) => {
-        //   const oraTask = (row["ora task?"] || row["Ora Task?"] || "").toString().toLowerCase() === "yes";
-        //   const totalHrs = parseFloat(row["Total Hrs"]);
-        //   return oraTask && !isNaN(totalHrs) && totalHrs > 0;
-        // });
         const filteredBudget = budgetJson.filter((row) => {
           const resource = (row["Resource"] || "").toString().trim();
           const phase = (row["Phase"] || "").toString().trim();
@@ -97,21 +94,20 @@ function App() {
           return resource && phase && !isNaN(totalHrs) && totalHrs > 0;
         });
 
+        if (specsSheet) {
+          const specsRange = XLSX.utils.sheet_to_json(specsSheet, {
+            header: 1,
+            defval: "",
+          });
 
+          const protocolRow = specsRange[3]; // 4th row (0-indexed)
+          const protocolIndex = protocolRow?.findIndex((cell) =>
+            (cell || "").toString().toLowerCase().includes("protocol")
+          );
+          protocolValue = protocolIndex >= 0 ? protocolRow[protocolIndex + 1] : "N/A";
+        }
 
-        const specsRange = XLSX.utils.sheet_to_json(specsSheet, {
-          header: 1,
-          defval: "",
-        });
-
-        const protocolRow = specsRange[3]; // 4th row (0-indexed)
-        const protocolIndex = protocolRow?.findIndex((cell) =>
-          (cell || "").toString().toLowerCase().includes("protocol")
-        );
-        const protocolValue = protocolIndex >= 0 ? protocolRow[protocolIndex + 1] : "N/A";
-
-
-        filteredBudget.forEach((row, index) => {
+          filteredBudget.forEach((row, index) => {
           const resource = row["Resource"] || "";
           const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
 
@@ -487,7 +483,7 @@ function App() {
             ...cleanRow,
             CraCountry: entry["Study Country"]?.trim(),
             CraSite: entry["Study Site Number"]?.trim(),
-            revisedDemand: ""  // Optional placeholder
+
           });
         });
       }
@@ -495,46 +491,46 @@ function App() {
 
     return result;
   }
-function addCraRevisedDemand(craData) {
-  const updated = [];
+  function addCraRevisedDemand(craData) {
+    const updated = [];
 
-  // Step 1: Count number of sites per (oraStudyId + service)
-  const groupMap = {};
+    // Step 1: Count number of sites per (oraStudyId + service)
+    const groupMap = {};
 
-  craData.forEach(row => {
-    const studyId = row.oraStudyId?.trim();
-    const service = row.service?.trim();
+    craData.forEach(row => {
+      const studyId = row.oraStudyId?.trim();
+      const service = row.service?.trim();
 
-    if (!studyId || !service) return;
+      if (!studyId || !service) return;
 
-    const key = `${studyId}__${service}`;
-    if (!groupMap[key]) {
-      groupMap[key] = { count: 0 };
-    }
+      const key = `${studyId}__${service}`;
+      if (!groupMap[key]) {
+        groupMap[key] = { count: 0 };
+      }
 
-    groupMap[key].count += 1; // each row = 1 site
-  });
-
-  // Step 2: Calculate revised demand
-  craData.forEach(row => {
-    const studyId = row.oraStudyId?.trim();
-    const service = row.service?.trim();
-    const totalHrs = parseFloat(row.totalHrs) || 0;
-
-    const key = `${studyId}__${service}`;
-    const totalSites = groupMap[key]?.count || 1;
-
-    const craRevisedDemand = (1 / totalSites) * totalHrs;
-
-    updated.push({
-      ...row,
-      totalSites,
-      craRevisedDemand: craRevisedDemand.toFixed(2),
+      groupMap[key].count += 1; // each row = 1 site
     });
-  });
 
-  return updated;
-}
+    // Step 2: Calculate revised demand
+    craData.forEach(row => {
+      const studyId = row.oraStudyId?.trim();
+      const service = row.service?.trim();
+      const totalHrs = parseFloat(row.totalHrs) || 0;
+
+      const key = `${studyId}__${service}`;
+      const totalSites = groupMap[key]?.count || 1;
+
+      const craRevisedDemand = (1 / totalSites) * totalHrs;
+
+      updated.push({
+        ...row,
+        totalSites,
+        craRevisedDemand: craRevisedDemand.toFixed(2),
+      });
+    });
+
+    return updated;
+  }
 
 
 
