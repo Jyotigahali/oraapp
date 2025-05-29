@@ -107,7 +107,7 @@ function App() {
           protocolValue = protocolIndex >= 0 ? protocolRow[protocolIndex + 1] : "N/A";
         }
 
-          filteredBudget.forEach((row, index) => {
+        filteredBudget.forEach((row, index) => {
           const resource = row["Resource"] || "";
           const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
 
@@ -378,82 +378,70 @@ function App() {
 
   // 🔹 Step 2 Helper: Calculate revisedDemand and updateData
   function calculateRevisedDemand(rows) {
-    const updatedRows = [];
-    const serviceMap = {};
-
     const cleanNumber = val => {
       if (val == null) return 0;
       const str = val.toString().replace(/[^0-9.\-]/g, '').trim();
       const num = parseFloat(str);
       return isNaN(num) ? 0 : num;
     };
+    const normalize = str =>
+      typeof str === 'string' ? str.replace(/\s+/g, ' ').trim() : '';
+    const studyCountryMap = {}; // { oraStudyId: { country: count } }
+    const totalCountryMap = {}; // { oraStudyId: totalCountries }
 
-    // Step 1: Group data per service to compute total sites and total hours
+    // Step 1: Build studyCountryMap and totalCountryMap
     rows.forEach(row => {
-      const service = row.service?.trim();
-      if (!service) return;
+      const oraStudyId = row.oraStudyId?.trim();
+      const country = row.country?.trim();
+      if (!oraStudyId || !country) return;
 
-      const siteCount = cleanNumber(row.siteCount || row.sites || row.site || 1);
-      const totalHrs = cleanNumber(row.totalHrs);
-
-      if (!serviceMap[service]) {
-        serviceMap[service] = {
-          totalSites: 0,
-          totalHours: 0
-        };
+      if (!studyCountryMap[oraStudyId]) {
+        studyCountryMap[oraStudyId] = {};
       }
 
-      serviceMap[service].totalSites += siteCount;
-      serviceMap[service].totalHours += totalHrs;
-
-      if (row.site || row.siteCount || row.sites || row.country) {
-        serviceMap[service].hasSiteOrCountry = true;
+      if (!studyCountryMap[oraStudyId][country]) {
+        studyCountryMap[oraStudyId][country] = 0;
       }
 
-      //console.log(`🛠 Service: ${service}, SiteCount: ${siteCount}, TotalHrs: ${totalHrs}`);
+      studyCountryMap[oraStudyId][country] += 1;
     });
 
-    // Step 2: Calculate RevisedDemandFactor and RevisedDemand per row
-    rows.forEach((row, index) => {
-      const service = row.service?.trim();
-      const resource = row.resource?.trim();
-      const siteCount = cleanNumber(row.siteCount || row.sites || row.site || 1);
-      const totalHrs = cleanNumber(row.totalHrs);
+    // Build totalCountryMap: count of unique countries per oraStudyId
+    Object.entries(studyCountryMap).forEach(([studyId, countryMap]) => {
+      totalCountryMap[studyId] = Object.keys(countryMap).length;
+    });
 
-      const serviceData = serviceMap[service] || {};
-      const totalSites = serviceData.totalSites || 0;
+    // Step 2: Enrich rows
+    const enrichedRows = rows.map(row => {
+      const oraStudyId = row.oraStudyId?.trim();
+      const country = normalize(row.country);
+      // const site = cleanNumber(row.site || row.siteCount || row.sites || 0);
+      const totalHrs = cleanNumber(row.totalHrs || 0);
 
-      let revisedDemandFactor = 0;
-      let revisedDemand = 0;
+      const countryCount = studyCountryMap[oraStudyId]?.[country] || 0;
+      const totalCountryCount = totalCountryMap[oraStudyId] || 0;
 
-      // 👇 New condition
-      const isSiteZero = siteCount === 0;
-      const isCountryMissing = row.country === undefined || row.country === null || row.country.toString().trim() === "";
+      const revisedDemandCalc =
+        totalCountryCount > 0 && countryCount > 0
+          ? ((totalCountryCount / countryCount) * totalHrs).toFixed(2)
+          : "0.00";
 
-      if (!(isSiteZero && isCountryMissing) && totalSites > 0) {
-        revisedDemandFactor = siteCount / totalSites;
-        revisedDemand = revisedDemandFactor * totalHrs;
-      }
-
-      // console.log(`🔢 Row ${index + 1} | Service: ${service}, Resource: ${resource}`);
-      // console.log(`    → SiteCount: ${siteCount}, Total Sites: ${totalSites}, Total Hrs: ${totalHrs}`);
-      // console.log(`    → RevisedDemandFactor: ${revisedDemandFactor.toFixed(3)}, RevisedDemand: ${revisedDemand.toFixed(3)}`);
-
-      updatedRows.push({
+      return {
         ...row,
-        slno: index + 1,
-        //revisedDemandFactor: revisedDemandFactor.toFixed(3),
-        revisedDemand: revisedDemand.toFixed(3),
-        //countryDemand: revisedDemand.toFixed(3),
-        totalSites: totalSites,
-        totalServiceHrs: serviceData.totalHours.toFixed(2)
-      });
+        countryCountForStudy: countryCount,
+        totalNoCountry: totalCountryCount,
+        revisedDemandCalc: Number(revisedDemandCalc)
+      };
     });
-
-
-    console.log("✅ Final Output Rows:", updatedRows);
-    updateData(updatedRows); // Update table or UI with new data
+    console.log("🔄 Enriched Rows with Revised Demand:", enrichedRows);
+    // ✅ Update state or UI
+    updateData(enrichedRows);
   }
+
+
+
+
+
 
   function handleCra(data, countryTable) {
     const result = [];
