@@ -569,25 +569,10 @@ function App() {
       });
 
       // Merge the milestone fields into your existing data
-      const updatedWithMilestones = data.map(row => {
-        const studyId = (row.oraStudyId || "").toString().trim();
-        const match = milestoneMap[studyId];
-
-        return {
-          ...row,
-          Department: match?.["Department"] || "",
-          Sponsor: match?.["Sponsor"] || "",
-          currentProjectStatus: match?.["** Current Project Phase"] || "",
-          Indication: match?.["Indication Picklist"] || "",
-          enrollmentMethod: match?.["** Enrollment Method"] || "",
-          studyNumber: match?.["Study Number"] || "",
-          therapeuticArea: match?.["Therapeutic Area"] || "",
-          noOfSites: match?.["Number of Sites"] || "",
-          noOfCountries: match?.["Country"]?.split(',').length || 0,
-          nameOfCountries: match?.["Country"] || "",
-        };
-      });
-
+      const updatedWithMilestones = addMetaData(data, milestoneMap)
+      const  updatedWithMilestonesForCra = addMetaData(cradata, milestoneMap); 
+      console.log("📋 Updated Data with Milestones cra:", updatedWithMilestonesForCra);
+      setCraData(updatedWithMilestonesForCra); // Update CRA data with milestones
       // ✅ Filter out rows with missing plannedStart or plannedEnd
       const filteredOutRows = updatedWithMilestones.filter(row => {
         const isInvalidDate = !row.plannedStart || !row.plannedEnd;
@@ -606,6 +591,37 @@ function App() {
       console.error("❌ Error reading schedule milestone file:", err);
     }
   };
+
+  const addMetaData = (data, milestoneMap) => {
+   const meta = data.map(row => {
+        const studyId = (row.oraStudyId || "").toString().trim();
+        const match = milestoneMap[studyId];
+
+        return {
+          ...row,
+          Department: match?.["Department"] || "",
+          Sponsor: match?.["Sponsor"] || "",
+          currentProjectStatus: match?.["** Current Project Phase"] || "",
+          Indication: match?.["Indication Picklist"] || "",
+          enrollmentMethod: match?.["** Enrollment Method"] || "",
+          studyNumber: match?.["Study Number"] || "",
+          therapeuticArea: match?.["Therapeutic Area"] || "",
+          noOfSites: match?.["Number of Sites"] || "",
+          noOfCountries: match?.["Country"]?.split(',').length || 0,
+          nameOfCountries: match?.["Country"] || "",
+        };
+      });
+
+      // const filteredOutRows = meta.filter(row => {
+      //   const isInvalidDate = !row.plannedStart || !row.plannedEnd;
+      //   return isInvalidDate;
+      // });
+
+      // // ✅ Keep only the valid rows
+      // const remainingData = meta.filter(row => !filteredOutRows.includes(row));
+
+      return meta //[filteredOutRows, remainingData]; // Rows with complete dates
+  }
 
 
   return (

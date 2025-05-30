@@ -76,6 +76,8 @@ function Categories(props) {
               units: 0,
               hrsPerUnit: 0,
               region: resource.split("-")[1],
+              oraStudyId,
+              protocol,
               country
           }
         }
@@ -92,42 +94,44 @@ function Categories(props) {
       setScenerioTwo(newArray);
     }
 
-    // if(activeTab === 'CRA/LCRA' && craData.length > 0) {
-    //   console.log("craData", craData);
-    //   const rolledUpByCRA = Object.values(
-    //     craData.reduce((acc, curr) => {
-    //       const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
-    //       // const [rolePrefix, regionCode] = resource.split("-");
-    //       // const isCRAType = rolePrefix === "CRA" || rolePrefix === "LCRA";
-    //       // Key to group by: combination of resource + oraStudyId + protocol
-    //       const key = `${resource}|${oraStudyId}|${phase}`;
-    //       // const region = resource.split("-")[0]
-    //       if (!acc[key]) {
-    //         acc[key] = {
-    //           ...rest, // All other fields (Department, Sponsor, etc.)
-    //           resource,
-    //           WorkItem: `${oraStudyId} - ${protocol}`,
-    //           activity: phase,
-    //           role: resource,
-    //           start : plannedStart,
-    //           end : plannedEnd,
-    //           totalHrs: 0,
-    //           units: 0,
-    //           hrsPerUnit: 0,
-    //           region: country,
-    //       }
-    //     }
-    //       acc[key].totalHrs += totalHrs;
-    //       acc[key].units += units;
-    //       acc[key].hrsPerUnit += hrsPerUnit;
+    if(activeTab === 'CRA/LCRA' && craData.length > 0) {
+      console.log("craData", craData);
+      const rolledUpByCRA = Object.values(
+        craData.reduce((acc, curr) => {
+          const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,CraCountry, units,plannedStart,plannedEnd,CraSite, ...rest } = curr;
+          const key = `${CraSite}|${oraStudyId}|${phase}`;
+          const region = resource.split("-")[0]
+          if (!acc[key]) {
+            acc[key] = {
+              ...rest, // All other fields (Department, Sponsor, etc.)
+              resource,
+              WorkItem: `${oraStudyId} - ${protocol} - ${CraSite}`,
+              activity: phase,
+              role: resource,
+              resourceRegion: CraCountry ? `${region}-${CraCountry}` : resource,
+              start : plannedStart,
+              end : plannedEnd,
+              totalHrs: 0,
+              units: 0,
+              hrsPerUnit: 0,
+              region: resource.split("-")[1],
+              country: CraCountry,
+              site: CraSite,
+              oraStudyId,
+              protocol,
+          }
+        }
+          acc[key].totalHrs += totalHrs;
+          acc[key].units += units;
+          acc[key].hrsPerUnit += hrsPerUnit;
       
-    //       return acc;
-    //     }, {})
-    //   );
-    //   let newArray = Object.values(rolledUpByCRA);
-    //   console.log("rolledUp_CRA/LCRA", newArray);  
-    //   setScenerioThree(newArray);
-    // }
+          return acc;
+        }, {})
+      );
+      let newArray = Object.values(rolledUpByCRA);
+      console.log("rolledUp_CRA/LCRA", newArray);  
+      setScenerioThree(newArray);
+    }
   }, [activeTab, currentData, craData]);
 
   const exportToCSV = (data, fileName) => {
@@ -282,7 +286,7 @@ function Categories(props) {
         </div>}
         {activeTab === 'region' && ScenerioOne.length > 0 && <div className="tab-pane active"> <RollupTable data={ScenerioOne} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
         {activeTab === 'country' && ScenerioTwo.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioTwo} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
-        {/* {activeTab === 'CRA/LCRA' && ScenerioThree.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioThree} exportToCSV={exportToCSV} activeTab={activeTab} /></div>} */}
+        {activeTab === 'CRA/LCRA' && ScenerioThree.length > 0 && <div className="tab-pane active"><RollupTable data={ScenerioThree} exportToCSV={exportToCSV} activeTab={activeTab} /></div>}
       </div>
     </div>
   );
