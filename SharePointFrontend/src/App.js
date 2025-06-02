@@ -569,19 +569,10 @@ function App() {
       });
 
       // Merge the milestone fields into your existing data
-      const updatedWithMilestones = addMetaData(data, milestoneMap)
-      const  updatedWithMilestonesForCra = addMetaData(cradata, milestoneMap); 
-      console.log("📋 Updated Data with Milestones cra:", updatedWithMilestonesForCra);
-      setCraData(updatedWithMilestonesForCra); // Update CRA data with milestones
-      // ✅ Filter out rows with missing plannedStart or plannedEnd
-      const filteredOutRows = updatedWithMilestones.filter(row => {
-        const isInvalidDate = !row.plannedStart || !row.plannedEnd;
-        return isInvalidDate;
-      });
-
-      // ✅ Keep only the valid rows
-      const remainingData = updatedWithMilestones.filter(row => !filteredOutRows.includes(row));
-
+      const [filteredOutRows, remainingData] = addMetaData(data, milestoneMap)
+      const  [filteredOutRowsCraLcra, remainingDataCraLcra] = addMetaData(cradata, milestoneMap);
+      setCraData(remainingDataCraLcra); // Update CRA data with milestones
+    
       // ✅ Update the main state and excluded list
       updateData(remainingData);              // Rows with complete dates
       setInvalidPhaseRows(filteredOutRows);   // Rows missing plannedStart or plannedEnd
@@ -593,7 +584,7 @@ function App() {
   };
 
   const addMetaData = (data, milestoneMap) => {
-   const meta = data.map(row => {
+   const withMeta = data.map(row => {
         const studyId = (row.oraStudyId || "").toString().trim();
         const match = milestoneMap[studyId];
 
@@ -612,15 +603,16 @@ function App() {
         };
       });
 
-      // const filteredOutRows = meta.filter(row => {
-      //   const isInvalidDate = !row.plannedStart || !row.plannedEnd;
-      //   return isInvalidDate;
-      // });
+      // ✅ Filter out rows with missing plannedStart or plannedEnd
+      const filteredOutRows = withMeta.filter(row => {
+        const isInvalidDate = !row.plannedStart || !row.plannedEnd;
+        return isInvalidDate;
+      });
 
-      // // ✅ Keep only the valid rows
-      // const remainingData = meta.filter(row => !filteredOutRows.includes(row));
+      // ✅ Keep only the valid rows
+      const remainingData = withMeta.filter(row => !filteredOutRows.includes(row));
 
-      return meta //[filteredOutRows, remainingData]; // Rows with complete dates
+      return [filteredOutRows, remainingData]; 
   }
 
 
