@@ -13,11 +13,13 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       End: item.end,
       Role: item.role,
       Comlexity: "Medium",
+      Duration: loadMonths(item),
+      TotalHrs: item.totalHrs,
       Value:loadFTE(item),
       CID: "",
       MID:"",
       MIM:"",
-      "_Resource Region": item.resourceRegion,
+      // "_Resource Region": item.resourceRegion,
       Region: item.region,
       // "_Therapeutic Area":  item.therapeuticArea,
       _Department: item.Department,
@@ -42,7 +44,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Begin: item.start,
       End: item.end,
       // Role: item.role,
-      "Resource Region": item.role,
+      // "Resource Region": item.role,
       Region: item.region,
     //  "Therapeutic Area":  item.therapeuticArea,
       Department: item.Department,
@@ -62,27 +64,29 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
 
   const loadFTE = (row) => {
     const totalHrs = row.totalHrs;
-    const start = new Date(row.start);
-    const end = new Date(row.end);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return ""; 
-    }
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    let fullMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-
-    // Add partial month from start
-    const daysInStartMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-    const startMonthDaysUsed = daysInStartMonth - start.getDate() + 1;
-    const startPartial = startMonthDaysUsed / daysInStartMonth;
-
-    // Add partial month from end
-    const daysInEndMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
-    const endMonthDaysUsed = end.getDate();
-    const endPartial = endMonthDaysUsed / daysInEndMonth;
-    let months = (fullMonths + startPartial + endPartial - 1).toFixed(4); // subtract 1 because we counted both full ends
+    let months = loadMonths(row) 
     const fte = ((totalHrs / months) / 151.55).toFixed(3);
     return fte
+  }
+  const loadMonths = (row) => {
+  const start = new Date(row.start);
+  const end = new Date(row.end);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return ""; 
+  }
+  let fullMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+
+  // Add partial month from start
+  const daysInStartMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const startMonthDaysUsed = daysInStartMonth - start.getDate() + 1;
+  const startPartial = startMonthDaysUsed / daysInStartMonth;
+
+  // Add partial month from end
+  const daysInEndMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+  const endMonthDaysUsed = end.getDate();
+  const endPartial = endMonthDaysUsed / daysInEndMonth;
+  let months = (fullMonths + startPartial + endPartial - 1).toFixed(4); // subtract 1 because we counted both full ends
+  return months
   }
   return (
     <div className="mt-3">
