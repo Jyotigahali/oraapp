@@ -540,6 +540,46 @@ function App() {
     console.log("🔄 Enriched Rows with Revised Demand:", enrichedRows);
     // ✅ Update state or UI
     updateData(enrichedRows);
+
+    // Step: Build map for TotalSite per oraStudyId + service
+const totalSiteMap = {}; // key = oraStudyId__service => sum of site
+
+enrichedRows.forEach(row => {
+  const studyId = row.oraStudyId?.trim();
+  const service = row.service?.trim();
+  const site = cleanNumber(row.site || 0);
+  if (!studyId || !service) return;
+
+  const key = `${studyId}__${service}`;
+  if (!totalSiteMap[key]) {
+    totalSiteMap[key] = 0;
+  }
+
+  totalSiteMap[key] += site;
+});
+
+// Step: Add TotalSite and SiteHrs to each row
+const updatedRowsWithSite = enrichedRows.map(row => {
+  const studyId = row.oraStudyId?.trim();
+  const service = row.service?.trim();
+  const totalHrs = cleanNumber(row.totalHrs || 0);
+  const site = cleanNumber(row.site || 0);
+
+  const key = `${studyId}__${service}`;
+  const totalSite = totalSiteMap[key] || 0;
+
+  const siteHrs = totalSite > 0 ? ((totalHrs / totalSite) * site).toFixed(6) : "0.00";
+
+  return {
+    ...row,
+    TotalSite: totalSite,
+    SiteHrs: Number(siteHrs)
+  };
+});
+
+console.log("🔄 Final Rows with corrected TotalSite & SiteHrs:", updatedRowsWithSite);
+updateData(updatedRowsWithSite);  // Overwrite enriched rows with additional columns
+
   }
 
 

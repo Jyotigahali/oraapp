@@ -225,6 +225,8 @@ function Categories(props) {
                 <th>Planned Finish Date</th>
                 <th>Country</th>
                 <th>Site</th>
+                <th>TotalSite</th>
+                <th>SiteHrs</th>
                 <th>Revised Demand</th>
                 {/* <th>Country Demand</th> */}
                 <th>Department</th>
@@ -253,6 +255,8 @@ function Categories(props) {
                   <td>{row.plannedEnd || ""}</td>
                   <td>{row.country || ""}</td>
                   <td>{row.site || ""}</td>
+                  <td>{row.TotalSite}</td>
+                  <td>{row.SiteHrs}</td>
                   <td>{row.revisedDemand || ""}</td>
                   {/* <td>{row.countryDemand}</td> */}
                   <td>{row.Department || ""}</td>
