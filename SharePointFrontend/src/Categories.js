@@ -100,8 +100,8 @@ function Categories(props) {
       console.log("craData", craData);
       const rolledUpByCRA = Object.values(
         craData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,CraCountry, units,plannedStart,plannedEnd,CraSite, ...rest } = curr;
-          const key = `${CraSite}|${oraStudyId}|${phase}`;
+          const { resource, oraStudyId, protocol, phase,SiteHrs, totalHrs,hrsPerUnit,CraCountry, units,plannedStart,plannedEnd,CraSite, ...rest } = curr;
+          const key = `${CraSite}|${oraStudyId}|${phase}|${resource}`;
           const region = resource.split("-")[0]
           if (!acc[key]) {
             acc[key] = {
@@ -114,6 +114,7 @@ function Categories(props) {
               start : plannedStart,
               end : plannedEnd,
               totalHrs: 0,
+              SiteHrs: 0,
               units: 0,
               hrsPerUnit: 0,
               region: resource.split("-")[1],
@@ -124,6 +125,7 @@ function Categories(props) {
           }
         }
           acc[key].totalHrs += totalHrs;
+          acc[key].SiteHrs += totalHrs;
           acc[key].units += units;
           acc[key].hrsPerUnit += hrsPerUnit;
       
