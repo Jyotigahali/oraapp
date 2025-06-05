@@ -14,8 +14,14 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Role: item.role,
       Comlexity: "Medium",
       Duration: loadMonths(item),
-      TotalHrs: item.totalHrs,
-      Value:loadFTE(item),
+      // TotalHrs: item.totalHrs,      
+      ...(activeTab === "region" 
+      ? { "Total Hrs Region": item.SiteHrs } 
+      : { "Total Hrs": item.totalHrs }),
+  ...(activeTab === "country" 
+      ? { "Hrs Per Ctry": item.SiteHrs, Country: item.country } 
+      : {}),
+      "Value(FTE)":loadFTE(item),
       CID: "",
       MID:"",
       MIM:"",
@@ -32,7 +38,8 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       "_# of Sites": item.noOfSites,
       "_# of Countries": item.noOfCountries,
       "_Name of Country(ies)": item.nameOfCountries,
-      "_Study Site": item.site,    
+      [activeTab === "country" ? "Country" : ""]: activeTab === "country" ? item.country : "",
+      // "_Study Site": item.site,    
     }));
     exportToCSV(csvData, `RoleUp_${activeTab}_RM_Demand.csv`); 
   }
@@ -63,9 +70,9 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
   }
 
   const loadFTE = (row) => {
-    const totalHrs = row.totalHrs;
+    const totalHrs = row.SiteHrs;
     let months = loadMonths(row) 
-    const fte = ((totalHrs / months) / 151.55).toFixed(3);
+    const fte = ((totalHrs / months) / 151.55).toFixed(4);
     return fte
   }
   const loadMonths = (row) => {
@@ -90,13 +97,13 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
   }
   return (
     <div className="mt-3">
+      <h4  className="my-2">Rolled Up By {activeTab?.toUpperCase()} </h4>
       <Button className="m-2" onClick={ () => handleExportDemand(data)}>
             Export as CSV For RM: Demand
       </Button>
       <Button className="m-2" onClick={() => handleExportSchedule(data)}>
             Export as CSV For RM: Schedule
-      </Button>
-      <h4  className="my-2">Rolled Up By {activeTab?.toUpperCase()} </h4>
+      </Button>      
       <table className="table table-bordered table-striped">
         <thead className="table-light">
           <tr>
@@ -130,7 +137,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{row.role}</td>
               <td>{row.start}</td>
               <td>{row.end}</td>
-              <td>{row.totalHrs}</td>
+              <td>{row.SiteHrs}</td>
               <td>{row.country}</td>
               <td>{row.Department}</td>
               <td>{row.Sponsor}</td>

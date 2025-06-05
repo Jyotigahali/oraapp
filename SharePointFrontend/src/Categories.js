@@ -18,7 +18,7 @@ function Categories(props) {
     if(activeTab === 'region' && currentData.length > 0) {
       const rolledUpByRegion = Object.values(
         currentData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
+          const { resource, oraStudyId, protocol, phase, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${resource}|${oraStudyId}|${phase}`;
           const region = resource.split("-")[0]
@@ -32,15 +32,15 @@ function Categories(props) {
               start : plannedStart,
               end : plannedEnd,
               resourceRegion:  country ? `${region}-${country}` : resource,
-              totalHrs: 0,
+              SiteHrs: 0,
               units: 0,
               hrsPerUnit: 0,
               oraStudyId,
               protocol,
-              country
+              country,
           }
         }
-          acc[key].totalHrs += totalHrs;
+          acc[key].SiteHrs += SiteHrs;
           acc[key].units += units;
           acc[key].hrsPerUnit += hrsPerUnit;
       
@@ -57,10 +57,10 @@ function Categories(props) {
     if(activeTab === 'country' && currentData.length > 0) {
       const rolledUpByCountry = Object.values(
         currentData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase, totalHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
+          const { resource, oraStudyId, protocol, phase,totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
       
           // Key to group by: combination of resource + oraStudyId + protocol
-          const key = `${country}|${oraStudyId}|${phase}`;
+          const key = `${country}|${oraStudyId}|${phase}|${resource}`;
           const region = resource.split("-")[0]
           if (!acc[key]) {
             acc[key] = {
@@ -72,6 +72,7 @@ function Categories(props) {
               resourceRegion: country ? `${region}-${country}` : resource,
               start : plannedStart,
               end : plannedEnd,
+              SiteHrs: 0,
               totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
@@ -81,6 +82,7 @@ function Categories(props) {
               country
           }
         }
+          acc[key].SiteHrs += SiteHrs;
           acc[key].totalHrs += totalHrs;
           acc[key].units += units;
           acc[key].hrsPerUnit += hrsPerUnit;
