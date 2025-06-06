@@ -102,7 +102,9 @@ function Categories(props) {
         craData.reduce((acc, curr) => {
           const { resource, oraStudyId, protocol, phase,SiteHrs, totalHrs,hrsPerUnit,CraCountry, units,plannedStart,plannedEnd,CraSite, ...rest } = curr;
           const key = `${CraSite}|${oraStudyId}|${phase}|${resource}`;
-          const region = resource.split("-")[0]
+          const region = resource.split("-")[0];
+          const siteHrs = parseFloat(SiteHrs) || 0;
+          const totalHrsValue = parseFloat(totalHrs) || 0;
           if (!acc[key]) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
@@ -124,8 +126,8 @@ function Categories(props) {
               protocol,
           }
         }
-          acc[key].totalHrs += totalHrs;
-          acc[key].SiteHrs += totalHrs;
+          acc[key].totalHrs += totalHrsValue;
+          acc[key].SiteHrs += siteHrs;
           acc[key].units += units;
           acc[key].hrsPerUnit += hrsPerUnit;
       

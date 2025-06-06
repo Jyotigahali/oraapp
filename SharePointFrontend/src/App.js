@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { Spinner, } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
+import { act } from "react";
 
 function App() {
   const [data, setData] = useState([]);
@@ -645,6 +646,7 @@ function App() {
 
       const site = parseInt(row.site);
       const totalHrs = parseFloat(row.totalHrs);
+      const siteHrs = parseFloat(row.SiteHrs);
 
       if (!isNaN(site) && site > 0 && !isNaN(totalHrs)) {
         const craSiteHrs = +(totalHrs / site).toFixed(6); // limit decimal precision
@@ -652,17 +654,30 @@ function App() {
         for (let i = 0; i < site; i++) {
           expandedRows.push({
             ...row,
-            craSiteHrs: craSiteHrs
+            CountryHrs: siteHrs,
+            SiteHrs: (siteHrs/ site).toFixed(6),
+            // craSiteHrs: craSiteHrs
           });
         }
       } else {
         // No valid site or totalHrs — just add row with craSiteHrs = 0
         expandedRows.push({
           ...row,
-          craSiteHrs: 0
+          CountryHrs: 0,
+          SiteHrs: 0,
+          // craSiteHrs: 0
         });
       }
+      
     });
+    // expandedRows.map(({ SiteHrs, ...rest }) => ({CountryHrs: SiteHrs, ...rest }));
+    //   const transformed = expandedRows.map(({ SiteHrs, site, ...rest }) => ({
+    //     CountryHrs: parseFloat(SiteHrs) / parseInt(site),
+    //     site,
+    //     ...rest
+    //   }));
+      
+    // console.log("📊 Expanded CRA Data:", transformed)
     console.log("🔄 Expanded CRA Data:", expandedRows);
     setCraData(expandedRows);
   };
