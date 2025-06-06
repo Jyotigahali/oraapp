@@ -13,8 +13,6 @@ function App() {
   //const [phaseTable, setPhaseTable] = useState([]); // New state for phase table
   const [studyData, setStudyData] = useState([]);
   const [studyCountry, setStudyCountry] = useState([]); // New state for study country
-  const [resourceData, setResourceData] = useState([]);
-  const [expandedData, setExpandedData] = useState([]);
   const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
   const [cradata, setCraData] = useState([]);
 
@@ -305,122 +303,118 @@ function App() {
       const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
       setStudyCountry(countryTable);
-      const cradata = handleCra(data, countryTable);
-      const finalCraData = addCraRevisedDemand(cradata);
-      setCraData(finalCraData);
-      console.log("📁 Study Country Data:", finalCraData);
 
       const regionMap = {
-  NA: [
-    "Canada",
-    "United States",
-    "US non-OraNet",
-    "US OraNet",
-    "Andover Eye"
-  ],
-  MENA: [
-    "Algeria",
-    "Bahrain",
-    "Egypt",
-    "Iran",
-    "Iraq",
-    "Israel",
-    "Jordan",
-    "Kuwait",
-    "Lebanon",
-    "Libya",
-    "Morocco",
-    "Oman",
-    "Palestine",
-    "Qatar",
-    "Saudi Arabia",
-    "Syria",
-    "Tunisia",
-    "United Arab Emirates",
-    "Yemen"
-  ],
-  APAC: [
-    "Afghanistan",
-    "Australia",
-    "Bangladesh",
-    "Bhutan",
-    "Brunei Darussalam",
-    "Cambodia",
-    "China",
-    "Cook Islands",
-    "Democratic People's Republic of Korea",
-    "Fiji",
-    "Hong Kong",
-    "India",
-    "Indonesia",
-    "Japan",
-    "Kiribati",
-    "Lao People's Democratic Republic",
-    "Macao",
-    "Malaysia",
-    "Maldives",
-    "Marshall Islands",
-    "New Zealand",
-    "South Korea",
-    "Taiwan"
-  ],
-  LATAM: [
-    "Argentina",
-    "Belize",
-    "Bolivia",
-    "Brazil",
-    "Chile",
-    "Colombia",
-    "Costa Rica",
-    "Ecuador",
-    "El Salvador",
-    "Guatemala",
-    "Guyana",
-    "Honduras",
-    "Mexico",
-    "Nicaragua",
-    "Panama",
-    "Paraguay",
-    "Peru",
-    "Suriname",
-    "Uruguay",
-    "Venezuela"
-  ],
-  EU: [
-    "Austria",
-    "Belgium",
-    "Bulgaria",
-    "Croatia",
-    "Czech Republic",
-    "Denmark",
-    "Estonia",
-    "Finland",
-    "France",
-    "Germany",
-    "Greece",
-    "Hungary",
-    "Ireland",
-    "Italy",
-    "Latvia",
-    "Lithuania",
-    "Luxembourg",
-    "Malta",
-    "Netherlands",
-    "Norway",
-    "Poland",
-    "Portugal",
-    "Republic of Cyprus",
-    "Romania",
-    "Slovakia",
-    "Slovenia",
-    "Spain",
-    "Sweden",
-    "Switzerland",
-    "United Kingdom"
-  ],
-  CN: ["China*"],
-  JP: ["Japan*"]
-};
+        NA: [
+          "Canada",
+          "United States",
+          "US non-OraNet",
+          "US OraNet",
+          "Andover Eye"
+        ],
+        MENA: [
+          "Algeria",
+          "Bahrain",
+          "Egypt",
+          "Iran",
+          "Iraq",
+          "Israel",
+          "Jordan",
+          "Kuwait",
+          "Lebanon",
+          "Libya",
+          "Morocco",
+          "Oman",
+          "Palestine",
+          "Qatar",
+          "Saudi Arabia",
+          "Syria",
+          "Tunisia",
+          "United Arab Emirates",
+          "Yemen"
+        ],
+        APAC: [
+          "Afghanistan",
+          "Australia",
+          "Bangladesh",
+          "Bhutan",
+          "Brunei Darussalam",
+          "Cambodia",
+          "China",
+          "Cook Islands",
+          "Democratic People's Republic of Korea",
+          "Fiji",
+          "Hong Kong",
+          "India",
+          "Indonesia",
+          "Japan",
+          "Kiribati",
+          "Lao People's Democratic Republic",
+          "Macao",
+          "Malaysia",
+          "Maldives",
+          "Marshall Islands",
+          "New Zealand",
+          "South Korea",
+          "Taiwan"
+        ],
+        LATAM: [
+          "Argentina",
+          "Belize",
+          "Bolivia",
+          "Brazil",
+          "Chile",
+          "Colombia",
+          "Costa Rica",
+          "Ecuador",
+          "El Salvador",
+          "Guatemala",
+          "Guyana",
+          "Honduras",
+          "Mexico",
+          "Nicaragua",
+          "Panama",
+          "Paraguay",
+          "Peru",
+          "Suriname",
+          "Uruguay",
+          "Venezuela"
+        ],
+        EU: [
+          "Austria",
+          "Belgium",
+          "Bulgaria",
+          "Croatia",
+          "Czech Republic",
+          "Denmark",
+          "Estonia",
+          "Finland",
+          "France",
+          "Germany",
+          "Greece",
+          "Hungary",
+          "Ireland",
+          "Italy",
+          "Latvia",
+          "Lithuania",
+          "Luxembourg",
+          "Malta",
+          "Netherlands",
+          "Norway",
+          "Poland",
+          "Portugal",
+          "Republic of Cyprus",
+          "Romania",
+          "Slovakia",
+          "Slovenia",
+          "Spain",
+          "Sweden",
+          "Switzerland",
+          "United Kingdom"
+        ],
+        CN: ["China*"],
+        JP: ["Japan*"]
+      };
 
       const dataWithExpandedCountryAndSite = [];
 
@@ -532,9 +526,9 @@ function App() {
 
       return {
         ...row,
-        countryCountForStudy: countryCount,
-        totalNoCountry: totalCountryCount,
-        revisedDemandCalc: Number(revisedDemandCalc)
+        // countryCountForStudy: countryCount,
+        // totalNoCountry: totalCountryCount,
+        // revisedDemandCalc: Number(revisedDemandCalc)
       };
     });
     console.log("🔄 Enriched Rows with Revised Demand:", enrichedRows);
@@ -542,129 +536,45 @@ function App() {
     updateData(enrichedRows);
 
     // Step: Build map for TotalSite per oraStudyId + service
-const totalSiteMap = {}; // key = oraStudyId__service => sum of site
+    const totalSiteMap = {}; // key = oraStudyId__service => sum of site
 
-enrichedRows.forEach(row => {
-  const studyId = row.oraStudyId?.trim();
-  const service = row.service?.trim();
-  const site = cleanNumber(row.site || 0);
-  if (!studyId || !service) return;
-
-  const key = `${studyId}__${service}`;
-  if (!totalSiteMap[key]) {
-    totalSiteMap[key] = 0;
-  }
-
-  totalSiteMap[key] += site;
-});
-
-// Step: Add TotalSite and SiteHrs to each row
-const updatedRowsWithSite = enrichedRows.map(row => {
-  const studyId = row.oraStudyId?.trim();
-  const service = row.service?.trim();
-  const totalHrs = cleanNumber(row.totalHrs || 0);
-  const site = cleanNumber(row.site || 0);
-
-  const key = `${studyId}__${service}`;
-  const totalSite = totalSiteMap[key] || 0;
-
-  const siteHrs = totalSite > 0 ? ((totalHrs / totalSite) * site).toFixed(6) : "0.00";
-
-  return {
-    ...row,
-    TotalSite: totalSite,
-    SiteHrs: Number(siteHrs)
-  };
-});
-
-console.log("🔄 Final Rows with corrected TotalSite & SiteHrs:", updatedRowsWithSite);
-updateData(updatedRowsWithSite);  // Overwrite enriched rows with additional columns
-
-  }
-
-
-
-
-
-
-  function handleCra(data, countryTable) {
-    const result = [];
-    console.log("📁 Study Country Data countryTable:", countryTable);
-    console.log("📁 Study Country Data data:", data);
-
-    data.forEach((row) => {
-      const { resource = "", oraStudyId } = row;
-
-      // Check if resource includes CRA or LCRA (even CRA-NA, LCRA-APAC, etc.)
-      const resourcePrefix = resource.split("-")[0].trim().toUpperCase();
-      if (resourcePrefix === "CRA" || resourcePrefix === "LCRA") {
-        // Find all matching active site rows in countryTable for this study
-        const matchingRows = countryTable.filter(entry =>
-          entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim() &&
-          entry["Site Status"]?.toLowerCase() === "active"
-        );
-
-        // Create one row per active site
-        matchingRows.forEach(entry => {
-          const {
-            country: _c, site: _s, revisedDemand: _r, totalSites: _ts, totalServiceHrs: _th, // unwanted fields
-            ...cleanRow
-          } = row;
-
-          result.push({
-            ...cleanRow,
-            CraCountry: entry["Study Country"]?.trim(),
-            CraSite: entry["Study Site Number"]?.trim(),
-
-          });
-        });
-      }
-    });
-
-    return result;
-  }
-  function addCraRevisedDemand(craData) {
-    const updated = [];
-
-    // Step 1: Count number of sites per (oraStudyId + service)
-    const groupMap = {};
-
-    craData.forEach(row => {
+    enrichedRows.forEach(row => {
       const studyId = row.oraStudyId?.trim();
       const service = row.service?.trim();
-
+      const site = cleanNumber(row.site || 0);
       if (!studyId || !service) return;
 
       const key = `${studyId}__${service}`;
-      if (!groupMap[key]) {
-        groupMap[key] = { count: 0 };
+      if (!totalSiteMap[key]) {
+        totalSiteMap[key] = 0;
       }
 
-      groupMap[key].count += 1; // each row = 1 site
+      totalSiteMap[key] += site;
     });
 
-    // Step 2: Calculate revised demand
-    craData.forEach(row => {
+    // Step: Add TotalSite and SiteHrs to each row
+    const updatedRowsWithSite = enrichedRows.map(row => {
       const studyId = row.oraStudyId?.trim();
       const service = row.service?.trim();
-      const totalHrs = parseFloat(row.totalHrs) || 0;
+      const totalHrs = cleanNumber(row.totalHrs || 0);
+      const site = cleanNumber(row.site || 0);
 
       const key = `${studyId}__${service}`;
-      const totalSites = groupMap[key]?.count || 1;
+      const totalSite = totalSiteMap[key] || 0;
 
-      const craRevisedDemand = (1 / totalSites) * totalHrs;
+      const siteHrs = totalSite > 0 ? ((totalHrs / totalSite) * site).toFixed(6) : "0.00";
 
-      updated.push({
+      return {
         ...row,
-        totalSites,
-        craRevisedDemand: craRevisedDemand.toFixed(2),
-      });
+        TotalSite: totalSite,
+        SiteHrs: Number(siteHrs)
+      };
     });
 
-    return updated;
+    console.log("🔄 Final Rows with corrected TotalSite & SiteHrs:", updatedRowsWithSite);
+    updateData(updatedRowsWithSite);  // Overwrite enriched rows with additional columns
+
   }
-
-
 
 
   const handleScheduleLevelMilestoneUpload = async (e) => {
@@ -714,49 +624,79 @@ updateData(updatedRowsWithSite);  // Overwrite enriched rows with additional col
 
       // Merge the milestone fields into your existing data
       const [filteredOutRows, remainingData] = addMetaData(data, milestoneMap)
-      const  [filteredOutRowsCraLcra, remainingDataCraLcra] = addMetaData(cradata, milestoneMap);
-      setCraData(remainingDataCraLcra); // Update CRA data with milestones
-    
+
+
       // ✅ Update the main state and excluded list
       updateData(remainingData);              // Rows with complete dates
       setInvalidPhaseRows(filteredOutRows);   // Rows missing plannedStart or plannedEnd
-
+      addCraData(remainingData); // Add to CRA data 
       console.log("✅ Final cleaned milestone data:", remainingData);
     } catch (err) {
       console.error("❌ Error reading schedule milestone file:", err);
     }
   };
 
-  const addMetaData = (data, milestoneMap) => {
-   const withMeta = data.map(row => {
-        const studyId = (row.oraStudyId || "").toString().trim();
-        const match = milestoneMap[studyId];
+  const addCraData = (data) => {
+    const expandedRows = [];
 
-        return {
+    data.forEach(row => {
+      const resource = (row.resource || "").toUpperCase();
+      if (!resource.includes("CRA")) return; // Skip non-CRA rows
+
+      const site = parseInt(row.site);
+      const totalHrs = parseFloat(row.totalHrs);
+
+      if (!isNaN(site) && site > 0 && !isNaN(totalHrs)) {
+        const craSiteHrs = +(totalHrs / site).toFixed(6); // limit decimal precision
+
+        for (let i = 0; i < site; i++) {
+          expandedRows.push({
+            ...row,
+            craSiteHrs: craSiteHrs
+          });
+        }
+      } else {
+        // No valid site or totalHrs — just add row with craSiteHrs = 0
+        expandedRows.push({
           ...row,
-          Department: match?.["Department"] || "",
-          Sponsor: match?.["Sponsor"] || "",
-          currentProjectStatus: match?.["** Current Project Phase"] || "",
-          Indication: match?.["Indication Picklist"] || "",
-          enrollmentMethod: match?.["** Enrollment Method"] || "",
-          studyNumber: match?.["Study Number"] || "",
-          therapeuticArea: match?.["Therapeutic Area"] || "",
-          noOfSites: match?.["Number of Sites"] || "",
-          noOfCountries: match?.["Country"]?.split(',').length || 0,
-          nameOfCountries: match?.["Country"] || "",
-        };
-      });
+          craSiteHrs: 0
+        });
+      }
+    });
+    console.log("🔄 Expanded CRA Data:", expandedRows);
+    setCraData(expandedRows);
+  };
 
-      // ✅ Filter out rows with missing plannedStart or plannedEnd
-      const filteredOutRows = withMeta.filter(row => {
-        const isInvalidDate = !row.plannedStart || !row.plannedEnd;
-        return isInvalidDate;
-      });
+  const addMetaData = (data, milestoneMap) => {
+    const withMeta = data.map(row => {
+      const studyId = (row.oraStudyId || "").toString().trim();
+      const match = milestoneMap[studyId];
 
-      // ✅ Keep only the valid rows
-      const remainingData = withMeta.filter(row => !filteredOutRows.includes(row));
+      return {
+        ...row,
+        Department: match?.["Department"] || "",
+        Sponsor: match?.["Sponsor"] || "",
+        currentProjectStatus: match?.["** Current Project Phase"] || "",
+        Indication: match?.["Indication Picklist"] || "",
+        enrollmentMethod: match?.["** Enrollment Method"] || "",
+        studyNumber: match?.["Study Number"] || "",
+        therapeuticArea: match?.["Therapeutic Area"] || "",
+        noOfSites: match?.["Number of Sites"] || "",
+        noOfCountries: match?.["Country"]?.split(',').length || 0,
+        nameOfCountries: match?.["Country"] || "",
+      };
+    });
 
-      return [filteredOutRows, remainingData]; 
+    // ✅ Filter out rows with missing plannedStart or plannedEnd
+    const filteredOutRows = withMeta.filter(row => {
+      const isInvalidDate = !row.plannedStart || !row.plannedEnd;
+      return isInvalidDate;
+    });
+
+    // ✅ Keep only the valid rows
+    const remainingData = withMeta.filter(row => !filteredOutRows.includes(row));
+
+    return [filteredOutRows, remainingData];
   }
 
 
