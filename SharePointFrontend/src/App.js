@@ -673,11 +673,11 @@ function App() {
 
         expandedRows.push({
           ...rest,
-          CRAcountry: country,         // ✅ renamed column
+          CRAcountry: country,         
           CountryHrs: siteHrs,
           SiteHrs: siteHrsPerSite,
           totalHrs: totalHrsPerSite,
-          CRAsite: siteName           // ✅ each site in its own row
+          CRAsite: siteName           
         });
       });
     } else {
