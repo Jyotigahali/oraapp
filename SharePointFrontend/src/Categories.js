@@ -109,7 +109,7 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem: `${oraStudyId} - ${protocol} - ${CraSite}`,
+              WorkItem: oraStudyId,
               activity: phase,
               role: resource,
               resourceRegion: CraCountry ? `${region}-${CraCountry}` : resource,

@@ -52,8 +52,8 @@ function App() {
     const allData = [];
 
     for (const file of files) {
-      console.log(`Processing file: ${file.name}`);
-      console.log('setStudyData', studyData);
+      // console.log(`Processing file: ${file.name}`);
+      // console.log('setStudyData', studyData);
 
       // Lookup Ora Study ID from studyData using file name
       const studyMatch = studyData.find(
@@ -436,33 +436,45 @@ function App() {
 
         const countrySiteMap = {};
         const studyNumbers = [];
+        const studySites = []
+        const studyCountries = [];
+        // if(oraStudyId?.toString().trim() === "20-150-0004") {
+        //   console.log("🇪🇸 Processing for oraStudyId:", matchingEntries)
+        // }
+
+        const countrySitesMap = {};
+
         matchingEntries.forEach(entry => {
           const country = entry["Study Country"]?.trim();
+          const siteNumber = entry["Study Site Number"]?.toString().trim();
+
           if (country) {
+            // Count of sites per country
             countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
-            studyNumbers.push(entry["Study Number"]?.toString().trim());
+
+            // Collect site numbers per country
+            if (!countrySitesMap[country]) {
+              countrySitesMap[country] = [];
+            }
+            if (siteNumber) {
+              countrySitesMap[country].push(siteNumber);
+            }
           }
         });
 
+
         const countryList = Object.keys(countrySiteMap);
         const siteCountList = countryList.map(country => countrySiteMap[country]);
-        if (countryList.length > 0) {
-          countryList.forEach((country, i) => {
-            dataWithExpandedCountryAndSite.push({
-              ...row,
-              country: country,
-              site: siteCountList[i].toString(),
-              studyNumber: studyNumbers[i] || "",
-            });
-          });
-        } else {
+
+        countryList.forEach((country, i) => {
           dataWithExpandedCountryAndSite.push({
             ...row,
-            country: "",
-            site: "",
-            studyNumber: "",
+            country: country,
+            site: siteCountList[i].toString(),
+            sites: countrySitesMap[country].join(", "), 
           });
-        }
+        });
+
       });
 
 
@@ -637,50 +649,54 @@ function App() {
     }
   };
 
-  const addCraData = (data) => {
-    const expandedRows = [];
+ const addCraData = (data) => {
+  const expandedRows = [];
 
-    data.forEach(row => {
-      const resource = (row.resource || "").toUpperCase();
-      if (!resource.includes("CRA")) return; // Skip non-CRA rows
+  data.forEach(row => {
+    const resource = (row.resource || "").toUpperCase();
+    if (!resource.includes("CRA")) return;
 
-      const site = parseInt(row.site);
-      const totalHrs = parseFloat(row.totalHrs);
-      const siteHrs = parseFloat(row.SiteHrs);
+    // Split 'sites' into an array of site names
+    const siteNames = (row.sites || "").split(',').map(site => site.trim()).filter(Boolean);
+    const siteCount = siteNames.length;
 
-      if (!isNaN(site) && site > 0 && !isNaN(totalHrs)) {
-        const craSiteHrs = +(totalHrs / site).toFixed(6); // limit decimal precision
+    const totalHrs = parseFloat(row.totalHrs);
+    const siteHrs = parseFloat(row.SiteHrs);
 
-        for (let i = 0; i < site; i++) {
-          expandedRows.push({
-            ...row,
-            CountryHrs: siteHrs,
-            SiteHrs: (siteHrs/ site).toFixed(6),
-            // craSiteHrs: craSiteHrs
-          });
-        }
-      } else {
-        // No valid site or totalHrs — just add row with craSiteHrs = 0
+    if (siteCount > 0 && !isNaN(totalHrs)) {
+      const siteHrsPerSite = +(siteHrs / siteCount).toFixed(6);
+      const totalHrsPerSite = +(totalHrs / siteCount).toFixed(6);
+
+      siteNames.forEach(siteName => {
+        // Destructure country out so we can rename it
+        const { country, ...rest } = row;
+
         expandedRows.push({
-          ...row,
-          CountryHrs: 0,
-          SiteHrs: 0,
-          // craSiteHrs: 0
+          ...rest,
+          CRAcountry: country,         // ✅ renamed column
+          CountryHrs: siteHrs,
+          SiteHrs: siteHrsPerSite,
+          totalHrs: totalHrsPerSite,
+          CRAsite: siteName           // ✅ each site in its own row
         });
-      }
-      
-    });
-    // expandedRows.map(({ SiteHrs, ...rest }) => ({CountryHrs: SiteHrs, ...rest }));
-    //   const transformed = expandedRows.map(({ SiteHrs, site, ...rest }) => ({
-    //     CountryHrs: parseFloat(SiteHrs) / parseInt(site),
-    //     site,
-    //     ...rest
-    //   }));
-      
-    // console.log("📊 Expanded CRA Data:", transformed)
-    console.log("🔄 Expanded CRA Data:", expandedRows);
-    setCraData(expandedRows);
-  };
+      });
+    } else {
+      const { country, ...rest } = row;
+      expandedRows.push({
+        ...rest,
+        CRAcountry: country,
+        CountryHrs: 0,
+        SiteHrs: 0,
+        totalHrs: 0,
+        CRAsite: ""
+      });
+    }
+  });
+
+  console.log("🔄 Expanded CRA Data with CRAcountry and CRAsite:", expandedRows);
+  setCraData(expandedRows);
+};
+
 
   const addMetaData = (data, milestoneMap) => {
     const withMeta = data.map(row => {
