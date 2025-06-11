@@ -172,14 +172,30 @@ function App() {
         .map((row) => {
           const study = row["Ora Project Code"]?.trim() || "";
           const type = row["Milestone Type"] || row["Milestone type"] || "";
-          const start = parseExcelDate(row["Planned Start Date"] || row["Planned start date"]);
-          const end = parseExcelDate(row["Planned Finish Date"] || row["Planned finish date"]);
-          return { study, type: type.trim(), start, end };
+          const country = row["Study Country"]?.trim();
+
+          const isProtocolApproved = type.trim() === "Protocol Approved";
+          const actualFinishDate = parseExcelDate(row["Actual Finish Date"]);
+          let start = isProtocolApproved
+            ? actualFinishDate
+            : parseExcelDate(row["Planned Start Date"] || row["Planned start date"]);
+
+          const finish = parseExcelDate(row["Planned Finish Date"] || row["Planned finish date"]);
+
+          // Rule: fallback to finish if start is blank or "1900"
+          if (!start || start.startsWith("1900")) {
+            start = finish;
+          }
+
+          const end = finish;
+
+          return { study, type: type.trim(), start, end, country };
         })
-        .filter((r) => r.study && r.type && r.start && r.end);
+        .filter((r) => !r.country && r.study && r.type && r.start && r.end);
+
 
       setStudyMilestones(studyMilestones); // Optional for debugging
-
+   console.log("📊 Parsed Milestones:", studyMilestones);
       // Step 2: Reference table to match phases
       const phaseDateReference = [
         { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
@@ -218,40 +234,6 @@ function App() {
           plannedEnd: endMilestone?.end || "",
         };
       });
-      // const newDataWithDates = [];
-      // const unmatchedRows = [];
-
-      // data.forEach((row) => {
-      //   const oraStudyId = row.oraStudyId?.trim();
-      //   const phase = row.phase?.trim();
-
-      //   const phaseRef = phaseDateReference.find(
-      //     (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
-      //   );
-
-      //   if (!phaseRef) {
-      //     unmatchedRows.push(row); // ✅ Keep only in unmatchedRows
-      //     return; // ❌ Do not add to newDataWithDates
-      //   }
-
-      //   const { startLabel, endLabel } = phaseRef;
-
-      //   const startMilestone = studyMilestones.find(
-      //     (m) => m.study === oraStudyId && m.type === startLabel
-      //   );
-      //   const endMilestone = studyMilestones.find(
-      //     (m) => m.study === oraStudyId && m.type === endLabel
-      //   );
-
-      //   newDataWithDates.push({
-      //     ...row,
-      //     plannedStart: startMilestone?.start || "",
-      //     plannedEnd: endMilestone?.end || "",
-      //   });
-      // });
-
-      // updateData(newDataWithDates);        // ✅ Final usable data with matched phases
-      // setInvalidPhaseRows(unmatchedRows); 
 
       updateData(newDataWithDates);
 
@@ -662,7 +644,7 @@ function App() {
 
       if (!isNaN(site) && site > 0 && !isNaN(totalHrs)) {
         const craSiteHrs = +(totalHrs / site).toFixed(6); // limit decimal precision
-        const { country, ...rest } = row; 
+        const { country, ...rest } = row;
         for (let i = 0; i < site; i++) {
           const siteList = (row.sites || "").split(",").map(s => s.trim()); // split by comma and trim
           expandedRows.push({
