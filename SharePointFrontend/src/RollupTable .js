@@ -15,33 +15,33 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Comlexity: "Medium",
       Duration: loadMonths(item),
       // TotalHrs: item.totalHrs,      
-      ...(activeTab === "region" 
-      ? { "Total Hrs Region": item.SiteHrs } 
-      : { "Total Hrs": item.totalHrs }),
-  ...(activeTab === "country" 
-      ? { "Hrs Per Ctry": item.SiteHrs, Country: item.country } 
-      : {}),
-      "Value(FTE)":loadFTE(item),
+      ...(activeTab === "region"
+        ? { "Total Hrs Region": item.SiteHrs }
+        : { "Total Hrs": item.totalHrs }),
+      ...(activeTab === "country"
+        ? { "Hrs Per Ctry": item.SiteHrs, Country: item.country }
+        : {}),
+      "Value(FTE)": loadFTE(item),
       CID: "",
-      MID:"",
-      MIM:"",
+      MID: "",
+      MIM: "",
       // "_Resource Region": item.resourceRegion,
-      Region: item.region,
+      "Resource Region": item.region,
       // "_Therapeutic Area":  item.therapeuticArea,
-      _Department: item.Department,
+      "Therapeutic Area": item.Department,
       _Sponsor: item.Sponsor,
       "_Current Project Status": item.currentProjectStatus,
-      _Indication:item.Indication,
-      "_Enrollment Method":item.enrollmentMethod,
+      _Indication: item.Indication,
+      "_Enrollment Method": item.enrollmentMethod,
       "_Study Nickname": item.studyNumber,
-      "_OraProject ID":item.oraStudyId,
+      "_OraProject ID": item.oraStudyId,
       "_# of Sites": item.noOfSites,
       "_# of Countries": item.noOfCountries,
       "_Name of Country(ies)": item.nameOfCountries,
       [activeTab === "country" ? "Country" : ""]: activeTab === "country" ? item.country : "",
       // "_Study Site": item.site,    
     }));
-    exportToCSV(csvData, `RoleUp_${activeTab}_RM_Demand.csv`); 
+    exportToCSV(csvData, `RoleUp_${activeTab}_RM_Demand.csv`);
   }
 
   const handleExportSchedule = (data) => {
@@ -52,58 +52,58 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       End: item.end,
       // Role: item.role,
       // "Resource Region": item.role,
-      Region: item.region,
-    //  "Therapeutic Area":  item.therapeuticArea,
-      Department: item.Department,
+      "Resource Region": item.region,
+      //  "Therapeutic Area":  item.therapeuticArea,
+      "Therapeutic Area": item.Department,
       Sponsor: item.Sponsor,
       "Current Project Status": item.currentProjectStatus,
-      Indication:item.Indication,
-      "Enrollment Method":item.enrollmentMethod,
+      Indication: item.Indication,
+      "Enrollment Method": item.enrollmentMethod,
       "Study Nickname": item.studyNumber,
       "OraProject ID": item.oraStudyId,
       "# of Sites": item.noOfSites,
       "# of Countries": item.noOfCountries,
       "Name of Country(ies)": item.nameOfCountries,
-      "Study Site": item.site, 
+      "Study Site": item.site,
     }));
     exportToCSV(csvData, `RoleUp_${activeTab}_RM_Schedule.csv`);
   }
 
   const loadFTE = (row) => {
     const totalHrs = row.SiteHrs;
-    let months = loadMonths(row) 
-    const fte = ((totalHrs / months) / 151.55).toFixed(4);
+    let months = loadMonths(row)
+    const fte = ((totalHrs / months) / 151.55).toFixed(2);
     return fte
   }
   const loadMonths = (row) => {
-  const start = new Date(row.start);
-  const end = new Date(row.end);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    return ""; 
-  }
-  let fullMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    const start = new Date(row.start);
+    const end = new Date(row.end);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return "";
+    }
+    let fullMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
 
-  // Add partial month from start
-  const daysInStartMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-  const startMonthDaysUsed = daysInStartMonth - start.getDate() + 1;
-  const startPartial = startMonthDaysUsed / daysInStartMonth;
+    // Add partial month from start
+    const daysInStartMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+    const startMonthDaysUsed = daysInStartMonth - start.getDate() + 1;
+    const startPartial = startMonthDaysUsed / daysInStartMonth;
 
-  // Add partial month from end
-  const daysInEndMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
-  const endMonthDaysUsed = end.getDate();
-  const endPartial = endMonthDaysUsed / daysInEndMonth;
-  let months = (fullMonths + startPartial + endPartial - 1).toFixed(4); // subtract 1 because we counted both full ends
-  return months
+    // Add partial month from end
+    const daysInEndMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+    const endMonthDaysUsed = end.getDate();
+    const endPartial = endMonthDaysUsed / daysInEndMonth;
+    let months = (fullMonths + startPartial + endPartial - 1).toFixed(2); // subtract 1 because we counted both full ends
+    return months
   }
   return (
     <div className="mt-3">
-      <h4  className="my-2">Rolled Up By {activeTab?.toUpperCase()} </h4>
-      <Button className="m-2" onClick={ () => handleExportDemand(data)}>
-            Export as CSV For RM: Demand
+      <h4 className="my-2">Rolled Up By {activeTab?.toUpperCase()} </h4>
+      <Button className="m-2" onClick={() => handleExportDemand(data)}>
+        Export as CSV For RM: Demand
       </Button>
       <Button className="m-2" onClick={() => handleExportSchedule(data)}>
-            Export as CSV For RM: Schedule
-      </Button>      
+        Export as CSV For RM: Schedule
+      </Button>
       <table className="table table-bordered table-striped">
         <thead className="table-light">
           <tr>

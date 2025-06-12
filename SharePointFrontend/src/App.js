@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { Spinner, } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
-import { act } from "react";
+
 
 function App() {
   const [data, setData] = useState([]);
@@ -107,22 +107,33 @@ function App() {
         }
 
         filteredBudget.forEach((row, index) => {
-          const resource = row["Resource"] || "";
-          const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
+          // const resource = row["Resource"] || "";
+          // const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
 
+          // Trim and clean individual fields
+          const rawResource = (row["Resource"] || "").toString().trim();
+          const [rawRole, rawRegion] = rawResource.includes("-") ? rawResource.split("-") : [rawResource, ""];
+
+          const resource = rawResource;
+          const role = rawRole.trim();
+          const region = rawRegion.trim();
+          const phaseRaw = (row["Phase"] || "").toString().trim();
+
+          // Normalize phase: make 'closeout' (in any case) into 'Closeout'
+          const phase = phaseRaw.toLowerCase() === "closeout" ? "Closeout" : phaseRaw;
           allData.push({
             slno: allData.length + 1,
             protocol: protocolValue,
             fileName: file.name,
             oraStudyId: oraStudyId,
-            service: row["Service"] || "",
-            units: row["# Units"] || row["Units"] || "",
-            hrsPerUnit: row["Hrs per Unit"] || "",
-            totalHrs: row["Total Hrs"] || "",
+            service: (row["Service"] || "").toString().trim(),
+            units: (row["# Units"] || row["Units"] || "").toString().trim(),
+            hrsPerUnit: (row["Hrs per Unit"] || "").toString().trim(),
+            totalHrs: (row["Total Hrs"] || "").toString().trim(),
             resource: resource,
             role: role,
             region: region,
-            phase: row["Phase"] || "",
+            phase: phase,
           });
         });
       } catch (error) {
@@ -195,7 +206,7 @@ function App() {
 
 
       setStudyMilestones(studyMilestones); // Optional for debugging
-   console.log("📊 Parsed Milestones:", studyMilestones);
+      console.log("📊 Parsed Milestones:", studyMilestones);
       // Step 2: Reference table to match phases
       const phaseDateReference = [
         { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
@@ -231,8 +242,9 @@ function App() {
         return {
           ...row,
           plannedStart: startMilestone?.start || "",
-          plannedEnd: endMilestone?.end || "",
+          plannedEnd: endMilestone?.start || "",
         };
+
       });
 
       updateData(newDataWithDates);
@@ -643,7 +655,7 @@ function App() {
       const siteHrs = parseFloat(row.SiteHrs);
 
       if (!isNaN(site) && site > 0 && !isNaN(totalHrs)) {
-        const craSiteHrs = +(totalHrs / site).toFixed(6); // limit decimal precision
+
         const { country, ...rest } = row;
         for (let i = 0; i < site; i++) {
           const siteList = (row.sites || "").split(",").map(s => s.trim()); // split by comma and trim
@@ -700,17 +712,33 @@ function App() {
       };
     });
 
-    // ✅ Filter out rows with missing plannedStart or plannedEnd
-    const filteredOutRows = withMeta.filter(row => {
-      const isInvalidDate = !row.plannedStart || !row.plannedEnd;
-      return isInvalidDate;
+    const filteredOutRows = [];
+    const remainingData = [];
+
+    withMeta.forEach(row => {
+      const { plannedStart, plannedEnd } = row;
+
+      // Check if either date is missing
+      if (!plannedStart || !plannedEnd) {
+        filteredOutRows.push(row);
+        return;
+      }
+
+      // Convert to Date objects for comparison
+      const startDate = new Date(plannedStart);
+      const endDate = new Date(plannedEnd);
+
+      // Check if plannedEnd is before plannedStart
+      if (endDate < startDate) {
+        filteredOutRows.push(row);
+      } else {
+        remainingData.push(row);
+      }
     });
 
-    // ✅ Keep only the valid rows
-    const remainingData = withMeta.filter(row => !filteredOutRows.includes(row));
-
     return [filteredOutRows, remainingData];
-  }
+  };
+
 
 
   return (
