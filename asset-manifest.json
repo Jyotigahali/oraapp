@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/oraapp/static/css/main.d42aaca0.css",
+    "main.js": "/oraapp/static/js/main.324700fe.js",
+    "index.html": "/oraapp/index.html",
+    "main.d42aaca0.css.map": "/oraapp/static/css/main.d42aaca0.css.map",
+    "main.324700fe.js.map": "/oraapp/static/js/main.324700fe.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.d42aaca0.css",
+    "static/js/main.324700fe.js"
+  ]
+}
