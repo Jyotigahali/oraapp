@@ -52,7 +52,7 @@ function App() {
     const allData = [];
 
     for (const file of files) {
-      // console.log(`Processing file: ${file.name}`);
+       console.log(`Processing file: ${file.name}`);
       // console.log('setStudyData', studyData);
 
       // Lookup Ora Study ID from studyData using file name
@@ -411,31 +411,48 @@ function App() {
         JP: ["Japan*"]
       };
 
-      const dataWithExpandedCountryAndSite = [];
 
-      data.forEach((row) => {
-        const { resource = "", oraStudyId = "" } = row;
-        const regionCode = resource.split("-")[1];
+      const dataWithExpandedCountryAndSite = [];
+      console.log("🔄 Before country & site added:", data);
+
+      data.forEach((row, index) => {
+        const { region = "", oraStudyId = "" } = row;
+        const regionCode = region.trim();
         const regionCountries = regionMap[regionCode];
+
         if (!regionCountries) {
-          dataWithExpandedCountryAndSite.push(row);
+          console.log(`Row ${index} → Skipped: Unknown or missing region code (${regionCode})`);
+
+          // Still include the row with empty country/site info
+          dataWithExpandedCountryAndSite.push({
+            ...row,
+            country: "",
+            site: "",
+            sites: "",
+          });
           return;
         }
 
         const matchingEntries = countryTable.filter(entry =>
-          (entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() || entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim()) &&
+          (entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() ||
+            entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim()) &&
           entry["Site Status"]?.toLowerCase() === "active" &&
           regionCountries.includes(entry["Study Country"])
         );
 
-        const countrySiteMap = {};
-        const studyNumbers = [];
-        const studySites = []
-        const studyCountries = [];
-        // if(oraStudyId?.toString().trim() === "20-150-0004") {
-        //   console.log("🇪🇸 Processing for oraStudyId:", matchingEntries)
-        // }
+        if (matchingEntries.length === 0) {
+          console.log(`Row ${index} → No matching active country entries for oraStudyId "${oraStudyId}" in region ${regionCode}`);
+          dataWithExpandedCountryAndSite.push({
+            ...row,
+            country: "",
+            site: "",
+            sites: "",
+          });
+          return;
+        }
 
+        // Group matching entries by country
+        const countrySiteMap = {};
         const countrySitesMap = {};
 
         matchingEntries.forEach(entry => {
@@ -443,10 +460,8 @@ function App() {
           const siteNumber = entry["Study Site Number"]?.toString().trim();
 
           if (country) {
-            // Count of sites per country
             countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
 
-            // Collect site numbers per country
             if (!countrySitesMap[country]) {
               countrySitesMap[country] = [];
             }
@@ -456,26 +471,34 @@ function App() {
           }
         });
 
-
         const countryList = Object.keys(countrySiteMap);
         const siteCountList = countryList.map(country => countrySiteMap[country]);
 
-        countryList.forEach((country, i) => {
+        if (countryList.length === 0) {
+          // Should not happen, but fallback safety
           dataWithExpandedCountryAndSite.push({
             ...row,
-            country: country,
-            site: siteCountList[i].toString(),
-            sites: countrySitesMap[country].join(", "),
+            country: "",
+            site: "",
+            sites: "",
           });
-        });
-
+        } else {
+          countryList.forEach((country, i) => {
+            dataWithExpandedCountryAndSite.push({
+              ...row,
+              country: country,
+              site: siteCountList[i].toString(),
+              sites: countrySitesMap[country].join(", "),
+            });
+          });
+        }
       });
-
 
       console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
 
-      // // Step 2: Now call helper to calculate revisedDemand & update
+      // Step 2: Calculate revisedDemand
       calculateRevisedDemand(dataWithExpandedCountryAndSite);
+
     };
 
     reader.readAsArrayBuffer(file);
@@ -569,7 +592,7 @@ function App() {
       const key = `${studyId}__${service}`;
       const totalSite = totalSiteMap[key] || 0;
 
-      const siteHrs = totalSite > 0 ? ((totalHrs / totalSite) * site).toFixed(6) : "0.00";
+      const siteHrs = totalSite > 0 ? ((totalHrs / totalSite) * site).toFixed(6) : totalHrs;
 
       return {
         ...row,
@@ -609,7 +632,7 @@ function App() {
 
       // Convert worksheet into JSON (raw array of objects)
       const rawMilestoneData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
+      console.log("📊 Raw Milestone Data:", rawMilestoneData);
       // Clean up column headers: trim keys
       const milestoneData = rawMilestoneData.map(entry => {
         const cleanedEntry = {};
