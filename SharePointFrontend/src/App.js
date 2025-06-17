@@ -552,9 +552,7 @@ function App() {
 
       return {
         ...row,
-        totalSite: totalSite,
-        totalSiteMap: totalSiteMapKeys[key] || "",
-        key: key,
+
         TotalSite: totalSite,
         SiteHrs: Number(siteHrs),
       };
@@ -699,20 +697,26 @@ function App() {
 
     withMeta.forEach(row => {
       const { plannedStart, plannedEnd } = row;
+      let comment = "";
 
-      // Check if either date is missing
-      if (!plannedStart || !plannedEnd) {
-        filteredOutRows.push(row);
-        return;
+      if (!plannedStart && !plannedEnd) {
+        comment = "Planned Start Date and Planned End Date are missing";
+      } else if (!plannedStart) {
+        comment = "Planned Start Date is missing";
+      } else if (!plannedEnd) {
+        comment = "Planned End Date is missing";
+      } else {
+        // Convert to Date objects for comparison
+        const startDate = new Date(plannedStart);
+        const endDate = new Date(plannedEnd);
+
+        if (endDate < startDate) {
+          comment = "Planned End Date is before Planned Start Date";
+        }
       }
 
-      // Convert to Date objects for comparison
-      const startDate = new Date(plannedStart);
-      const endDate = new Date(plannedEnd);
-
-      // Check if plannedEnd is before plannedStart
-      if (endDate < startDate) {
-        filteredOutRows.push(row);
+      if (comment) {
+        filteredOutRows.push({ ...row, comments: comment });
       } else {
         remainingData.push(row);
       }
