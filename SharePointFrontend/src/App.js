@@ -52,7 +52,7 @@ function App() {
     const allData = [];
 
     for (const file of files) {
-       console.log(`Processing file: ${file.name}`);
+      console.log(`Processing file: ${file.name}`);
       // console.log('setStudyData', studyData);
 
       // Lookup Ora Study ID from studyData using file name
@@ -421,7 +421,7 @@ function App() {
         const regionCountries = regionMap[regionCode];
 
         if (!regionCountries) {
-          console.log(`Row ${index} → Skipped: Unknown or missing region code (${regionCode})`);
+          // console.log(`Row ${index} → Skipped: Unknown or missing region code (${regionCode})`);
 
           // Still include the row with empty country/site info
           dataWithExpandedCountryAndSite.push({
@@ -505,6 +505,7 @@ function App() {
   };
 
   // 🔹 Step 2 Helper: Calculate revisedDemand and updateData
+
   function calculateRevisedDemand(rows) {
     const cleanNumber = val => {
       if (val == null) return 0;
@@ -512,66 +513,15 @@ function App() {
       const num = parseFloat(str);
       return isNaN(num) ? 0 : num;
     };
-    const normalize = str =>
-      typeof str === 'string' ? str.replace(/\s+/g, ' ').trim() : '';
-    const studyCountryMap = {}; // { oraStudyId: { country: count } }
-    const totalCountryMap = {}; // { oraStudyId: totalCountries }
 
-    // Step 1: Build studyCountryMap and totalCountryMap
+    // 🔹 Step 1: Build totalSiteMap grouped by oraStudyId + service
+    const totalSiteMap = {}; // key = oraStudyId__service => total site sum
+    const totalSiteMapKeys = {}; // To track unique keys
     rows.forEach(row => {
-      const oraStudyId = row.oraStudyId?.trim();
-      const country = row.country?.trim();
-      if (!oraStudyId || !country) return;
-
-      if (!studyCountryMap[oraStudyId]) {
-        studyCountryMap[oraStudyId] = {};
-      }
-
-      if (!studyCountryMap[oraStudyId][country]) {
-        studyCountryMap[oraStudyId][country] = 0;
-      }
-
-      studyCountryMap[oraStudyId][country] += 1;
-    });
-
-    // Build totalCountryMap: count of unique countries per oraStudyId
-    Object.entries(studyCountryMap).forEach(([studyId, countryMap]) => {
-      totalCountryMap[studyId] = Object.keys(countryMap).length;
-    });
-
-    // Step 2: Enrich rows
-    const enrichedRows = rows.map(row => {
-      const oraStudyId = row.oraStudyId?.trim();
-      const country = normalize(row.country);
-      // const site = cleanNumber(row.site || row.siteCount || row.sites || 0);
-      const totalHrs = cleanNumber(row.totalHrs || 0);
-
-      const countryCount = studyCountryMap[oraStudyId]?.[country] || 0;
-      const totalCountryCount = totalCountryMap[oraStudyId] || 0;
-
-      const revisedDemandCalc =
-        totalCountryCount > 0 && countryCount > 0
-          ? ((totalCountryCount / countryCount) * totalHrs).toFixed(2)
-          : "0.00";
-
-      return {
-        ...row,
-        // countryCountForStudy: countryCount,
-        // totalNoCountry: totalCountryCount,
-        // revisedDemandCalc: Number(revisedDemandCalc)
-      };
-    });
-    console.log("🔄 Enriched Rows with Revised Demand:", enrichedRows);
-    // ✅ Update state or UI
-    updateData(enrichedRows);
-
-    // Step: Build map for TotalSite per oraStudyId + service
-    const totalSiteMap = {}; // key = oraStudyId__service => sum of site
-
-    enrichedRows.forEach(row => {
       const studyId = row.oraStudyId?.trim();
       const service = row.service?.trim();
-      const site = cleanNumber(row.site || 0);
+      const site = cleanNumber(row.site);
+
       if (!studyId || !service) return;
 
       const key = `${studyId}__${service}`;
@@ -580,31 +530,38 @@ function App() {
       }
 
       totalSiteMap[key] += site;
+      totalSiteMapKeys[key] += site.toString(); // Track unique keys
     });
 
-    // Step: Add TotalSite and SiteHrs to each row
-    const updatedRowsWithSite = enrichedRows.map(row => {
+    // 🔹 Step 2: Use group totalSite to calculate SiteHrs per row
+    const updatedRows = rows.map(row => {
       const studyId = row.oraStudyId?.trim();
       const service = row.service?.trim();
-      const totalHrs = cleanNumber(row.totalHrs || 0);
-      const site = cleanNumber(row.site || 0);
+      const site = cleanNumber(row.site);
+      const totalHrs = cleanNumber(row.totalHrs);
 
       const key = `${studyId}__${service}`;
       const totalSite = totalSiteMap[key] || 0;
 
-      const siteHrs = totalSite > 0 ? ((totalHrs / totalSite) * site).toFixed(6) : totalHrs;
+      let siteHrs = 0;
+      if (totalSite > 0 && site > 0) {
+        siteHrs = ((totalHrs / totalSite) * site).toFixed(6);
+      } else {
+        siteHrs = totalHrs;
+      }
 
       return {
         ...row,
+
         TotalSite: totalSite,
-        SiteHrs: Number(siteHrs)
+        SiteHrs: Number(siteHrs),
       };
     });
 
-    console.log("🔄 Final Rows with corrected TotalSite & SiteHrs:", updatedRowsWithSite);
-    updateData(updatedRowsWithSite);  // Overwrite enriched rows with additional columns
-
+    console.log("✅ Final Rows with TotalSite & SiteHrs:", updatedRows);
+    updateData(updatedRows);
   }
+
 
 
   const handleScheduleLevelMilestoneUpload = async (e) => {
@@ -740,20 +697,26 @@ function App() {
 
     withMeta.forEach(row => {
       const { plannedStart, plannedEnd } = row;
+      let comment = "";
 
-      // Check if either date is missing
-      if (!plannedStart || !plannedEnd) {
-        filteredOutRows.push(row);
-        return;
+      if (!plannedStart && !plannedEnd) {
+        comment = "Planned Start Date and Planned End Date are missing";
+      } else if (!plannedStart) {
+        comment = "Planned Start Date is missing";
+      } else if (!plannedEnd) {
+        comment = "Planned End Date is missing";
+      } else {
+        // Convert to Date objects for comparison
+        const startDate = new Date(plannedStart);
+        const endDate = new Date(plannedEnd);
+
+        if (endDate < startDate) {
+          comment = "Planned End Date is before Planned Start Date";
+        }
       }
 
-      // Convert to Date objects for comparison
-      const startDate = new Date(plannedStart);
-      const endDate = new Date(plannedEnd);
-
-      // Check if plannedEnd is before plannedStart
-      if (endDate < startDate) {
-        filteredOutRows.push(row);
+      if (comment) {
+        filteredOutRows.push({ ...row, comments: comment });
       } else {
         remainingData.push(row);
       }
