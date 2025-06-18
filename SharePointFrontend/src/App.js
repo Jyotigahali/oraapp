@@ -686,7 +686,7 @@ function App() {
             ...row,
             CountryHrs: siteHrs,
             CRAcountry: country,
-            SiteHrs: (siteHrs / site).toFixed(6),
+            SiteHrs: site ? (siteHrs / site).toFixed(6) : siteHrs,
             CRASites: siteList[i] || "" // assign one site per row
           });
         }

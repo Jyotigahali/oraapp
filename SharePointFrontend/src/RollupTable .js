@@ -12,9 +12,8 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Begin: item.start,
       End: item.end,
       Role: item.role,
-      Comlexity: "Medium",
+      Complexity: "Medium",
       Duration: loadMonths(item),
-      // TotalHrs: item.totalHrs,      
       ...(activeTab === "region"
         ? { "Total Hrs Region": item.SiteHrs }
         : { "Total Hrs": item.totalHrs }),
