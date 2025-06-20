@@ -150,110 +150,107 @@ function App() {
 
 
 
-  const handleMilestoneUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+ const handleMilestoneUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      const json = XLSX.utils.sheet_to_json(sheet, {
-        defval: "",
-        cellDates: true,
-      });
+    const json = XLSX.utils.sheet_to_json(sheet, {
+      defval: "",
+      cellDates: true,
+    });
 
-      // Excel date parser
-      const parseExcelDate = (value) => {
-        if (typeof value === "number") {
-          const date = XLSX.SSF.parse_date_code(value);
-          if (!date) return "";
-          const iso = new Date(Date.UTC(date.y, date.m - 1, date.d)).toISOString();
-          return iso.split("T")[0];
-        }
-        if (value instanceof Date) {
-          return value.toISOString().split("T")[0];
-        }
-        return "";
+    // Excel date parser
+    const parseExcelDate = (value) => {
+      if (typeof value === "number") {
+        const date = XLSX.SSF.parse_date_code(value);
+        if (!date) return "";
+        const iso = new Date(Date.UTC(date.y, date.m - 1, date.d)).toISOString();
+        return iso.split("T")[0];
+      }
+      if (value instanceof Date) {
+        return value.toISOString().split("T")[0];
+      }
+      return "";
+    };
+
+    const phaseDateReference = [
+      { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
+      { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
+      { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
+      { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
+      { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
+      { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
+    ];
+
+    const cleanDate = (val) => {
+      const date = parseExcelDate(val);
+      return (!date || date.startsWith("1900")) ? "" : date;
+    };
+
+    const getDateByPriority = (milestone, type) => {
+      if (type === "Protocol Approved") {
+        return cleanDate(milestone["Actual Finish Date"]);
+      }
+
+      return (
+        cleanDate(milestone["Actual Start Date"]) ||
+        cleanDate(milestone["Actual Finish Date"]) ||
+        cleanDate(milestone["Planned Start Date"]) ||
+        cleanDate(milestone["Planned Finish Date"])
+      );
+    };
+
+    const studyMilestones = json.map((row) => ({
+      study: row["Ora Project Code"]?.trim(),
+      type: row["Milestone Type"]?.trim(),
+      data: row,
+    })).filter((r) => r.study && r.type);
+
+    const newDataWithDates = data.map((row) => {
+      const oraStudyId = row.oraStudyId?.trim();
+      const phase = row.phase?.trim();
+
+      const phaseRef = phaseDateReference.find(
+        (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
+      );
+
+      if (!phaseRef) {
+        return { ...row, plannedStart: "", plannedEnd: "", comments: "Invalid phase" };
+      }
+
+      const { startLabel, endLabel } = phaseRef;
+
+      const startMilestone = studyMilestones.find(
+        (m) => m.study === oraStudyId && m.type === startLabel
+      );
+      const endMilestone = studyMilestones.find(
+        (m) => m.study === oraStudyId && m.type === endLabel
+      );
+
+      const plannedStart = startMilestone ? getDateByPriority(startMilestone.data, startLabel) : "";
+      const plannedEnd = endMilestone ? getDateByPriority(endMilestone.data, endLabel) : "";
+
+      const hasError = !plannedStart || !plannedEnd;
+
+      return {
+        ...row,
+        plannedStart,
+        plannedEnd,
+        comments: hasError ? "Missing milestone dates" : "",
       };
+    });
 
-      // Step 1: Parse milestone rows
-      const studyMilestones = json
-        .map((row) => {
-          const study = row["Ora Project Code"]?.trim() || "";
-          const type = row["Milestone Type"] || row["Milestone type"] || "";
-          const country = row["Study Country"]?.trim();
+    updateData(newDataWithDates);
 
-          const isProtocolApproved = type.trim() === "Protocol Approved";
-          const actualFinishDate = parseExcelDate(row["Actual Finish Date"]);
-          let start = isProtocolApproved
-            ? actualFinishDate
-            : parseExcelDate(row["Planned Start Date"] || row["Planned start date"]);
-
-          const finish = parseExcelDate(row["Planned Finish Date"] || row["Planned finish date"]);
-
-          // Rule: fallback to finish if start is blank or "1900"
-          if (!start || start.startsWith("1900")) {
-            start = finish;
-          }
-
-          const end = finish;
-
-          return { study, type: type.trim(), start, end, country };
-        })
-        .filter((r) => !r.country && r.study && r.type && r.start && r.end);
-
-
-      setStudyMilestones(studyMilestones); // Optional for debugging
-      console.log("📊 Parsed Milestones:", studyMilestones);
-      // Step 2: Reference table to match phases
-      const phaseDateReference = [
-        { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
-        { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
-        { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
-        { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
-        { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
-        { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
-      ];
-
-      // Step 3: Inject plannedStart and plannedEnd into each data row
-      const newDataWithDates = data.map((row) => {
-        const oraStudyId = row.oraStudyId?.trim();
-        const phase = row.phase?.trim();
-
-        const phaseRef = phaseDateReference.find(
-          (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
-        );
-
-        if (!phaseRef) {
-          return { ...row, plannedStart: "", plannedEnd: "" };
-        }
-
-        const { startLabel, endLabel } = phaseRef;
-
-        const startMilestone = studyMilestones.find(
-          (m) => m.study === oraStudyId && m.type === startLabel
-        );
-        const endMilestone = studyMilestones.find(
-          (m) => m.study === oraStudyId && m.type === endLabel
-        );
-
-        return {
-          ...row,
-          plannedStart: startMilestone?.start || "",
-          plannedEnd: endMilestone?.start || "",
-        };
-
-      });
-
-      updateData(newDataWithDates);
-
-    } catch (err) {
-      console.error("Error parsing milestone file:", err);
-    }
-  };
-
+  } catch (err) {
+    console.error("Error parsing milestone file:", err);
+  }
+};
 
 
   // const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
@@ -689,6 +686,7 @@ function App() {
         noOfSites: match?.["Number of Sites"] || "",
         noOfCountries: match?.["Country"]?.split(',').length || 0,
         nameOfCountries: match?.["Country"] || "",
+        ["In Veeva?"]: match ? "Yes" : "No",  // ✅ New field
       };
     });
 
@@ -696,22 +694,26 @@ function App() {
     const remainingData = [];
 
     withMeta.forEach(row => {
-      const { plannedStart, plannedEnd } = row;
       let comment = "";
 
-      if (!plannedStart && !plannedEnd) {
-        comment = "Planned Start Date and Planned End Date are missing";
-      } else if (!plannedStart) {
-        comment = "Planned Start Date is missing";
-      } else if (!plannedEnd) {
-        comment = "Planned End Date is missing";
+      // ✅ New condition: if study not in Veeva
+      if (row["In Veeva?"] === "No") {
+        comment = "Study not found in Veeva";
       } else {
-        // Convert to Date objects for comparison
-        const startDate = new Date(plannedStart);
-        const endDate = new Date(plannedEnd);
+        const { plannedStart, plannedEnd } = row;
 
-        if (endDate < startDate) {
-          comment = "Planned End Date is before Planned Start Date";
+        if (!plannedStart && !plannedEnd) {
+          comment = "Planned Start Date and Planned End Date are missing";
+        } else if (!plannedStart) {
+          comment = "Planned Start Date is missing";
+        } else if (!plannedEnd) {
+          comment = "Planned End Date is missing";
+        } else {
+          const startDate = new Date(plannedStart);
+          const endDate = new Date(plannedEnd);
+          if (endDate < startDate) {
+            comment = "Planned End Date is before Planned Start Date";
+          }
         }
       }
 
