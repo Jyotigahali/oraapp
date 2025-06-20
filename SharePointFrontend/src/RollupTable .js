@@ -15,7 +15,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Complexity: "Medium",
       Duration: loadMonths(item),
       ...(activeTab === "region"
-        ? { "Total Hrs Region": item.SiteHrs }
+        ? { "Total Hrs Region": item.totalHrs }
         : { "Total Hrs": item.totalHrs }),
       ...(activeTab === "country"
         ? { "Hrs Per Ctry": item.SiteHrs, Country: item.country }
@@ -69,9 +69,9 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
   }
 
   const loadFTE = (row) => {
-    const totalHrs = row.SiteHrs;
+    const totalHrs = row.totalHrs;
     let months = loadMonths(row)
-    const fte = ((totalHrs / months) / 151.55).toFixed(2);
+    const fte = ((totalHrs / months) / 151.55).toFixed(4);
     return fte
   }
   const loadMonths = (row) => {
@@ -136,7 +136,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{row.role}</td>
               <td>{row.start}</td>
               <td>{row.end}</td>
-              <td>{row.SiteHrs}</td>
+              <td>{row.totalHrs}</td>
               <td>{row.country}</td>
               <td>{row.Department}</td>
               <td>{row.Sponsor}</td>

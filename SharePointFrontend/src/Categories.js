@@ -18,10 +18,11 @@ function Categories(props) {
     if(activeTab === 'region' && currentData.length > 0) {
       const rolledUpByRegion = Object.values(
         currentData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
+          const { resource, oraStudyId, protocol, phase, totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${resource}|${oraStudyId}|${phase}`;
           const region = resource.split("-")[0]
+          const totalHours = parseFloat(totalHrs) || 0;
           if (!acc[key]) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
@@ -33,6 +34,7 @@ function Categories(props) {
               end : plannedEnd,
               resourceRegion:  country ? `${region}-${country}` : resource,
               SiteHrs: 0,
+              totalHrs: 0,
               units: 0,
               hrsPerUnit: 0,
               oraStudyId,
@@ -41,6 +43,7 @@ function Categories(props) {
           }
         }
           acc[key].SiteHrs += SiteHrs;
+          acc[key].totalHrs += totalHours;
           acc[key].units += units;
           acc[key].hrsPerUnit += hrsPerUnit;
       
@@ -62,6 +65,8 @@ function Categories(props) {
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${country}|${oraStudyId}|${phase}|${resource}`;
           const region = resource.split("-")[0]
+          const totalHours = parseFloat(totalHrs) || 0;
+          const SiteHours = parseFloat(SiteHrs) || 0;
           if (!acc[key]) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
@@ -82,8 +87,8 @@ function Categories(props) {
               country
           }
         }
-          acc[key].SiteHrs += SiteHrs;
-          acc[key].totalHrs += totalHrs;
+          acc[key].SiteHrs += SiteHours;
+          acc[key].totalHrs += totalHours;
           acc[key].units += units;
           acc[key].hrsPerUnit += hrsPerUnit;
       
