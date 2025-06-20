@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
+import axios from "axios";
 import { Spinner, } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
@@ -26,22 +27,22 @@ function App() {
     setData(newData);
     setCurrentPage(1);
   };
-  // useEffect(() => {
-  //   axios.get("http://localhost:3001/api/fetch-files")
-  //     .then((response) => {
-  //       // setFiles(response.data);
-  //       console.log("📁 Files:", response);
-  //       setLoading(false);
-  //       setTimeout(() => {
-  //         alert("All Active Files saved to system Downloads folder")
-  //       }, 5000)
-  //     })
-  //     .catch((err) => {
-  //       console.error(err);
-  //       // setError("Failed to fetch files");
-  //       setLoading(false);
-  //     });
-  // }, []);
+  useEffect(() => {
+    axios.get("http://localhost:3001/api/fetch-files")
+      .then((response) => {
+        // setFiles(response.data);
+        console.log("📁 Files:", response);
+        setLoading(false);
+        setTimeout(() => {
+          alert("All Active Files saved to system Downloads folder")
+        }, 5000)
+      })
+      .catch((err) => {
+        console.error(err);
+        // setError("Failed to fetch files");
+        setLoading(false);
+      });
+  }, []);
 
   // ... your handleFileUpload remains the same, just call `updateData(flatData)` instead of `setData(flatData)`
   const handleFileUpload = async (e) => {
@@ -150,107 +151,111 @@ function App() {
 
 
 
- const handleMilestoneUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handleMilestoneUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  try {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-    const json = XLSX.utils.sheet_to_json(sheet, {
-      defval: "",
-      cellDates: true,
-    });
+      const json = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+        cellDates: true,
+      });
 
-    // Excel date parser
-    const parseExcelDate = (value) => {
-      if (typeof value === "number") {
-        const date = XLSX.SSF.parse_date_code(value);
-        if (!date) return "";
-        const iso = new Date(Date.UTC(date.y, date.m - 1, date.d)).toISOString();
-        return iso.split("T")[0];
-      }
-      if (value instanceof Date) {
-        return value.toISOString().split("T")[0];
-      }
-      return "";
-    };
-
-    const phaseDateReference = [
-      { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
-      { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
-      { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
-      { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
-      { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
-      { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
-    ];
-
-    const cleanDate = (val) => {
-      const date = parseExcelDate(val);
-      return (!date || date.startsWith("1900")) ? "" : date;
-    };
-
-    const getDateByPriority = (milestone, type) => {
-      if (type === "Protocol Approved") {
-        return cleanDate(milestone["Actual Finish Date"]);
-      }
-
-      return (
-        cleanDate(milestone["Actual Start Date"]) ||
-        cleanDate(milestone["Actual Finish Date"]) ||
-        cleanDate(milestone["Planned Start Date"]) ||
-        cleanDate(milestone["Planned Finish Date"])
-      );
-    };
-
-    const studyMilestones = json.map((row) => ({
-      study: row["Ora Project Code"]?.trim(),
-      type: row["Milestone Type"]?.trim(),
-      data: row,
-    })).filter((r) => r.study && r.type);
-
-    const newDataWithDates = data.map((row) => {
-      const oraStudyId = row.oraStudyId?.trim();
-      const phase = row.phase?.trim();
-
-      const phaseRef = phaseDateReference.find(
-        (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
-      );
-
-      if (!phaseRef) {
-        return { ...row, plannedStart: "", plannedEnd: "", comments: "Invalid phase" };
-      }
-
-      const { startLabel, endLabel } = phaseRef;
-
-      const startMilestone = studyMilestones.find(
-        (m) => m.study === oraStudyId && m.type === startLabel
-      );
-      const endMilestone = studyMilestones.find(
-        (m) => m.study === oraStudyId && m.type === endLabel
-      );
-
-      const plannedStart = startMilestone ? getDateByPriority(startMilestone.data, startLabel) : "";
-      const plannedEnd = endMilestone ? getDateByPriority(endMilestone.data, endLabel) : "";
-
-      const hasError = !plannedStart || !plannedEnd;
-
-      return {
-        ...row,
-        plannedStart,
-        plannedEnd,
-        comments: hasError ? "Missing milestone dates" : "",
+      // Excel date parser
+      const parseExcelDate = (value) => {
+        if (typeof value === "number") {
+          const date = XLSX.SSF.parse_date_code(value);
+          if (!date) return "";
+          const iso = new Date(Date.UTC(date.y, date.m - 1, date.d)).toISOString();
+          return iso.split("T")[0];
+        }
+        if (value instanceof Date) {
+          return value.toISOString().split("T")[0];
+        }
+        return "";
       };
-    });
 
-    updateData(newDataWithDates);
+      const phaseDateReference = [
+        { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
+        { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
+        { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
+        { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
+        { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
+        { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
+      ];
 
-  } catch (err) {
-    console.error("Error parsing milestone file:", err);
-  }
-};
+      const cleanDate = (val) => {
+        const date = parseExcelDate(val);
+        return (!date || date.startsWith("1900")) ? "" : date;
+      };
+
+      const getDateByPriority = (milestone, type) => {
+        if (type === "Protocol Approved") {
+          return cleanDate(milestone["Actual Finish Date"]);
+        }
+
+        return (
+          cleanDate(milestone["Actual Start Date"]) ||
+          cleanDate(milestone["Actual Finish Date"]) ||
+          cleanDate(milestone["Planned Start Date"]) ||
+          cleanDate(milestone["Planned Finish Date"])
+        );
+      };
+
+      const studyMilestones = json
+        .filter(row => !row["Study Country"]?.trim()) // ✅ Only keep rows where Study Country is blank
+        .map((row) => ({
+          study: row["Ora Project Code"]?.trim(),
+          type: row["Milestone Type"]?.trim(),
+          data: row,
+        }))
+        .filter((r) => r.study && r.type);
+
+      const newDataWithDates = data.map((row) => {
+        const oraStudyId = row.oraStudyId?.trim();
+        const phase = row.phase?.trim();
+
+        const phaseRef = phaseDateReference.find(
+          (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
+        );
+
+        if (!phaseRef) {
+          return { ...row, plannedStart: "", plannedEnd: "", comments: "Invalid phase" };
+        }
+
+        const { startLabel, endLabel } = phaseRef;
+
+        const startMilestone = studyMilestones.find(
+          (m) => m.study === oraStudyId && m.type === startLabel
+        );
+        const endMilestone = studyMilestones.find(
+          (m) => m.study === oraStudyId && m.type === endLabel
+        );
+
+        const plannedStart = startMilestone ? getDateByPriority(startMilestone.data, startLabel) : "";
+        const plannedEnd = endMilestone ? getDateByPriority(endMilestone.data, endLabel) : "";
+
+        const hasError = !plannedStart || !plannedEnd;
+
+        return {
+          ...row,
+          plannedStart,
+          plannedEnd,
+          comments: hasError ? "Missing milestone dates" : "",
+        };
+      });
+
+      updateData(newDataWithDates);
+
+    } catch (err) {
+      console.error("Error parsing milestone file:", err);
+    }
+  };
+
 
 
   // const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
