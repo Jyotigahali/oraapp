@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { Spinner, } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
-
+import axios from "axios";
 
 function App() {
   const [data, setData] = useState([]);
