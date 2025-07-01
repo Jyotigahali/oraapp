@@ -50,6 +50,76 @@ function App() {
 
     setLoading(true);
     const allData = [];
+    const roleMapping = {
+      "PM-NA": "PM-NA",
+      "CTA-NA": "CTA-NA",
+      "ADMIN": "ADMIN",
+      "TMF": "TMF",
+      "CTMS Tech Fee": "CTMS Tech Fee",
+      "PD - US": "PD - US",
+      "LCRA-NA": "LCRA-NA",
+      "Senior CTA / Study Start-up Lead": "Senior CTA/Startup Lead",
+      "CRA-NA": "CRA-NA",
+      "QA": "QA",
+      "CMC": "CMC",
+      "TAH": "TAH",
+      "DIRMON": "DIRMON",
+      "Senior CTA/ Startup Lead": "Senior CTA/Startup Lead",
+      "MW": "MW",
+      "BCVA": "BCVA",
+      "COORD": "OraNet COORD",
+      "RECRUIT": "RECRUIT",
+      "FIN": "FIN",
+      "TMF/Startup Tech Fee": "TMF/Startup Tech Fee",
+      "Operations Manager": "OpsMgr",
+      "MM": "MM",
+      "CRC": "CRC",
+      "PM": "PM",
+      "CTA": "CTA",
+      "LCRA": "LCRA",
+      "CRA": "CRA",
+      "PD": "PD",
+      "PM-LATAM": "PM-LATAM",
+      "CRA-LATAM": "CRA-LATAM",
+      "CRA-MENA": "CRA-MENA",
+      "CRA-EU": "CRA-EU",
+      "PM-EU": "PM-EU",
+      "LCRA-EU": "LCRA-EU",
+      "CTA-EU": "CTA-EU",
+      "TMF - US CDMS": "TMF-US",
+      "PD - EU": "PD - EU",
+      "REGMAN-EU": "REGMAN-EU",
+      "MSD": "MSD",
+      "CTA-LATAM": "CTA-LATAM",
+      "LCRA-LATAM": "LCRA-LATAM",
+      "LegalAssoc-EU": "LegalAssoc-EU",
+      "REGDIR-LATAM": "REGDIR-LATAM",
+      "MonMgr": "MonMgr",
+      "REGDIR-NA": "REGDIR-NA",
+      "PASS": "PASS",
+      "OpsMgr": "OpsMgr",
+      "MedSafeDir": "MSD",
+      "OraNet COORD": "OraNet COORD",
+      "RECRUIT-PM": "RECRUIT-PM",
+      "Expert Grader": "Expert Grader",
+      "MSA": "MSA",
+      "CRA-APAC": "CRA-APAC",
+      "REGDIR-EU": "REGDIR-EU",
+      "REGWRI-NA": "REGWRI-NA",
+      "LCRA-APAC": "LCRA-APAC",
+      "PM-APAC": "PM-APAC",
+      "CTA-APAC": "CTA-APAC",
+      "Medical Safety Associate": "MSA",
+      "Medical Safety Director": "MSD",
+      "LegAssoc-EU": "LegalAssoc-EU",
+      "REGMAN-NA": "REGMAN-NA",
+      "REGMAN-APAC": "REGMAN-APAC",
+      "REGMAN-LATAM": "REGMAN-LATAM",
+      "LegAssocEU": "LegalAssoc-EU",
+      "New Resource 1": "New Resource 1",
+      "MW-CSR": "MW-CSR",
+      "MW-REG": "MW-REG"
+    };
 
     for (const file of files) {
       console.log(`Processing file: ${file.name}`);
@@ -112,11 +182,20 @@ function App() {
 
           // Trim and clean individual fields
           const rawResource = (row["Resource"] || "").toString().trim();
-          const [rawRole, rawRegion] = rawResource.includes("-") ? rawResource.split("-") : [rawResource, ""];
 
-          const resource = rawResource;
+         
+          // ✅ Standardize the resource name using the role mapping BEFORE splitting
+          const standardizedResource = roleMapping[rawResource] || roleMapping[rawResource.trim()] || rawResource;
+
+          // ✅ Now split standardized resource into role + region
+          const [rawRole, rawRegion] = standardizedResource.includes("-")
+            ? standardizedResource.split("-")
+            : [standardizedResource, ""];
+
           const role = rawRole.trim();
-          const region = rawRegion.trim();
+          const region = rawRegion.trim() || "NA"; // Default to NA if region is blank
+          const finalResource = `${role}-${region}`;
+
           const phaseRaw = (row["Phase"] || "").toString().trim();
 
           // Normalize phase: make 'closeout' (in any case) into 'Closeout'
@@ -130,9 +209,10 @@ function App() {
             units: (row["# Units"] || row["Units"] || "").toString().trim(),
             hrsPerUnit: (row["Hrs per Unit"] || "").toString().trim(),
             totalHrs: (row["Total Hrs"] || "").toString().trim(),
-            resource: resource,
+            resource:standardizedResource,
             role: role,
             region: region,
+            finalResource: finalResource,
             phase: phase,
           });
         });
