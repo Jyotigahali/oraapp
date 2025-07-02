@@ -10,12 +10,14 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   //const [dateMap, setDateMap] = useState({});
-  const [studyMilestones, setStudyMilestones] = useState([]); // New state for milestones
+  // const [studyMilestones, setStudyMilestones] = useState([]); // New state for milestones
   //const [phaseTable, setPhaseTable] = useState([]); // New state for phase table
   const [studyData, setStudyData] = useState([]);
   const [studyCountry, setStudyCountry] = useState([]); // New state for study country
   const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
   const [cradata, setCraData] = useState([]);
+  const [excludedOraStudyIds, setExcludedOraStudyIds] = useState([]);
+
 
 
   // You can change this to 25, 50, etc.
@@ -130,6 +132,10 @@ function App() {
         (s) => (s["File Name"] || "").trim().toLowerCase() === file.name.trim().toLowerCase()
       );
       const oraStudyId = studyMatch ? studyMatch["Ora Study ID"] : "N/A";
+      if (excludedOraStudyIds.includes(oraStudyId)) {
+        console.log(`Skipping excluded OraStudyId: ${oraStudyId} in file: ${file.name}`);
+        continue;
+      }
 
       try {
         const buffer = await file.arrayBuffer();
@@ -183,7 +189,7 @@ function App() {
           // Trim and clean individual fields
           const rawResource = (row["Resource"] || "").toString().trim();
 
-         
+
           // ✅ Standardize the resource name using the role mapping BEFORE splitting
           const standardizedResource = roleMapping[rawResource] || roleMapping[rawResource.trim()] || rawResource;
 
@@ -209,7 +215,7 @@ function App() {
             units: (row["# Units"] || row["Units"] || "").toString().trim(),
             hrsPerUnit: (row["Hrs per Unit"] || "").toString().trim(),
             totalHrs: (row["Total Hrs"] || "").toString().trim(),
-            resource:standardizedResource,
+            resource: standardizedResource,
             role: role,
             region: region,
             finalResource: finalResource,
@@ -364,6 +370,30 @@ function App() {
 
     reader.readAsArrayBuffer(file);
   }
+  const handleExclusionFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      // Collect all Ora Study IDs (trimmed) into an array
+      const ids = jsonData
+        .map(row => (row["Ora Study ID"] || "").toString().trim())
+        .filter(id => id); // Remove blanks
+
+      setExcludedOraStudyIds(ids);
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
 
   const handleStudyCountry = async (e) => {
     const file = e.target.files[0];
@@ -819,6 +849,14 @@ function App() {
       <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
       {loading && <Spinner animation="border" className="mt-3" />}
       <div className="mt-3">
+        <label><strong>Upload Active Study File</strong></label>
+        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleStudyUpload} />
+      </div>
+      <div className="mt-3">
+        <label><strong>Upload exclode StudyID file</strong></label>
+        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleExclusionFileUpload} />
+      </div>
+      <div className="mt-3">
         <label><strong>Upload Milestone File</strong></label>
         <input type="file" accept=".xlsx,.xls,.csv" onChange={handleMilestoneUpload} />
       </div>
@@ -826,10 +864,7 @@ function App() {
         <label><strong>Upload Study Country & Site</strong></label>
         <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
       </div>
-      <div className="mt-3">
-        <label><strong>Upload Active Study File</strong></label>
-        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleStudyUpload} />
-      </div>
+
       <div className="mt-3">
         <label><strong>Upload Schedule Level Milestone Meta</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
