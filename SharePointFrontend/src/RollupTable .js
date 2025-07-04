@@ -11,7 +11,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       Activity: item.activity,
       Begin: item.start,
       End: item.end,
-      Role: item.role,
+      Role: item.finalResource,
       Complexity: "Medium",
       Duration: loadMonths(item),
       ...(activeTab === "region"

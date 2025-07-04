@@ -17,6 +17,7 @@ function App() {
   const [invalidPhaseRows, setInvalidPhaseRows] = useState([]);
   const [cradata, setCraData] = useState([]);
   const [excludedOraStudyIds, setExcludedOraStudyIds] = useState([]);
+  const [roleMapping, setRoleMapping] = useState({});
 
 
 
@@ -52,76 +53,7 @@ function App() {
 
     setLoading(true);
     const allData = [];
-    const roleMapping = {
-      "PM-NA": "PM-NA",
-      "CTA-NA": "CTA-NA",
-      "ADMIN": "ADMIN",
-      "TMF": "TMF",
-      "CTMS Tech Fee": "CTMS Tech Fee",
-      "PD - US": "PD - US",
-      "LCRA-NA": "LCRA-NA",
-      "Senior CTA / Study Start-up Lead": "Senior CTA/Startup Lead",
-      "CRA-NA": "CRA-NA",
-      "QA": "QA",
-      "CMC": "CMC",
-      "TAH": "TAH",
-      "DIRMON": "DIRMON",
-      "Senior CTA/ Startup Lead": "Senior CTA/Startup Lead",
-      "MW": "MW",
-      "BCVA": "BCVA",
-      "COORD": "OraNet COORD",
-      "RECRUIT": "RECRUIT",
-      "FIN": "FIN",
-      "TMF/Startup Tech Fee": "TMF/Startup Tech Fee",
-      "Operations Manager": "OpsMgr",
-      "MM": "MM",
-      "CRC": "CRC",
-      "PM": "PM",
-      "CTA": "CTA",
-      "LCRA": "LCRA",
-      "CRA": "CRA",
-      "PD": "PD",
-      "PM-LATAM": "PM-LATAM",
-      "CRA-LATAM": "CRA-LATAM",
-      "CRA-MENA": "CRA-MENA",
-      "CRA-EU": "CRA-EU",
-      "PM-EU": "PM-EU",
-      "LCRA-EU": "LCRA-EU",
-      "CTA-EU": "CTA-EU",
-      "TMF - US CDMS": "TMF-US",
-      "PD - EU": "PD - EU",
-      "REGMAN-EU": "REGMAN-EU",
-      "MSD": "MSD",
-      "CTA-LATAM": "CTA-LATAM",
-      "LCRA-LATAM": "LCRA-LATAM",
-      "LegalAssoc-EU": "LegalAssoc-EU",
-      "REGDIR-LATAM": "REGDIR-LATAM",
-      "MonMgr": "MonMgr",
-      "REGDIR-NA": "REGDIR-NA",
-      "PASS": "PASS",
-      "OpsMgr": "OpsMgr",
-      "MedSafeDir": "MSD",
-      "OraNet COORD": "OraNet COORD",
-      "RECRUIT-PM": "RECRUIT-PM",
-      "Expert Grader": "Expert Grader",
-      "MSA": "MSA",
-      "CRA-APAC": "CRA-APAC",
-      "REGDIR-EU": "REGDIR-EU",
-      "REGWRI-NA": "REGWRI-NA",
-      "LCRA-APAC": "LCRA-APAC",
-      "PM-APAC": "PM-APAC",
-      "CTA-APAC": "CTA-APAC",
-      "Medical Safety Associate": "MSA",
-      "Medical Safety Director": "MSD",
-      "LegAssoc-EU": "LegalAssoc-EU",
-      "REGMAN-NA": "REGMAN-NA",
-      "REGMAN-APAC": "REGMAN-APAC",
-      "REGMAN-LATAM": "REGMAN-LATAM",
-      "LegAssocEU": "LegalAssoc-EU",
-      "New Resource 1": "New Resource 1",
-      "MW-CSR": "MW-CSR",
-      "MW-REG": "MW-REG"
-    };
+    
 
     for (const file of files) {
       console.log(`Processing file: ${file.name}`);
@@ -132,6 +64,7 @@ function App() {
         (s) => (s["File Name"] || "").trim().toLowerCase() === file.name.trim().toLowerCase()
       );
       const oraStudyId = studyMatch ? studyMatch["Ora Study ID"] : "N/A";
+      console.log("exclodedOraStudyIds", excludedOraStudyIds);
       if (excludedOraStudyIds.includes(oraStudyId)) {
         console.log(`Skipping excluded OraStudyId: ${oraStudyId} in file: ${file.name}`);
         continue;
@@ -191,6 +124,7 @@ function App() {
 
 
           // ✅ Standardize the resource name using the role mapping BEFORE splitting
+          //const standardizedResource = roleMapping[rawResource] || roleMapping[rawResource.trim()] || rawResource;
           const standardizedResource = roleMapping[rawResource] || roleMapping[rawResource.trim()] || rawResource;
 
           // ✅ Now split standardized resource into role + region
@@ -387,12 +321,42 @@ function App() {
       const ids = jsonData
         .map(row => (row["Ora Study ID"] || "").toString().trim())
         .filter(id => id); // Remove blanks
-
+      console.log("Excluded Ora Study IDs:", ids);
       setExcludedOraStudyIds(ids);
     };
 
     reader.readAsArrayBuffer(file);
   };
+
+  const handleRoleMappingUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = (event) => {
+    const data = new Uint8Array(event.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+    // Convert to mapping object
+    const mapping = {};
+    jsonData.forEach(row => {
+      const original = (row["Role"] || "").trim();
+      const correct = (row["Correct Role"] || "").trim();
+      if (original && correct) {
+        mapping[original] = correct;
+      }
+    });
+
+    console.log("✅ Role Mapping Loaded:", mapping);
+    setRoleMapping(mapping);
+  };
+
+  reader.readAsArrayBuffer(file);
+};
 
 
   const handleStudyCountry = async (e) => {
@@ -855,6 +819,10 @@ function App() {
       <div className="mt-3">
         <label><strong>Upload exclode StudyID file</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleExclusionFileUpload} />
+      </div>
+            <div className="mt-3">
+        <label><strong>Upload roleMapping</strong></label>
+        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleRoleMappingUpload} />
       </div>
       <div className="mt-3">
         <label><strong>Upload Milestone File</strong></label>
