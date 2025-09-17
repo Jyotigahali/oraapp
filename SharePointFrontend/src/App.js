@@ -53,7 +53,7 @@ function App() {
 
     setLoading(true);
     const allData = [];
-    
+
 
     for (const file of files) {
       console.log(`Processing file: ${file.name}`);
@@ -167,9 +167,6 @@ function App() {
   };
 
 
-
-
-
   const handleMilestoneUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -198,25 +195,13 @@ function App() {
         return "";
       };
 
-      const phaseDateReference = [
-        { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
-        { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
-        { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
-        { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
-        { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
-        { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
-      ];
-
       const cleanDate = (val) => {
         const date = parseExcelDate(val);
         return (!date || date.startsWith("1900")) ? "" : date;
       };
 
-      const getDateByPriority = (milestone, type) => {
-        if (type === "Protocol Approved") {
-          return cleanDate(milestone["Actual Finish Date"]);
-        }
-
+      // Function to get milestone date for normal phases
+      const getDateByPriority = (milestone) => {
         return (
           cleanDate(milestone["Actual Start Date"]) ||
           cleanDate(milestone["Actual Finish Date"]) ||
@@ -225,14 +210,45 @@ function App() {
         );
       };
 
+      // Function to get date for Startup / All phases
+      const getStartupAllDate = (studyMilestones, oraStudyId) => {
+        const tryMilestones = ["Protocol Approved", "Protocol Finalization"];
+
+        for (const type of tryMilestones) {
+          const milestone = studyMilestones.find(
+            (m) => m.study === oraStudyId && m.type === type
+          );
+          if (!milestone) continue;
+
+          const actualStart = cleanDate(milestone.data["Actual Start Date"]);
+          const actualFinish = cleanDate(milestone.data["Actual Finish Date"]);
+
+          if (actualStart) return actualStart;
+          if (actualFinish) return actualFinish;
+          // If both blank/1900 → continue to next milestone type
+        }
+
+        return ""; // nothing found
+      };
+
+      // Filter and structure milestones
       const studyMilestones = json
-        .filter(row => !row["Study Country"]?.trim()) // ✅ Only keep rows where Study Country is blank
+        .filter(row => !row["Study Country"]?.trim()) // Only keep rows where Study Country is blank
         .map((row) => ({
           study: row["Ora Project Code"]?.trim(),
           type: row["Milestone Type"]?.trim(),
           data: row,
         }))
         .filter((r) => r.study && r.type);
+
+      const phaseDateReference = [
+        { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
+        { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
+        { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
+        { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
+        { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
+        { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
+      ];
 
       const newDataWithDates = data.map((row) => {
         const oraStudyId = row.oraStudyId?.trim();
@@ -248,15 +264,22 @@ function App() {
 
         const { startLabel, endLabel } = phaseRef;
 
-        const startMilestone = studyMilestones.find(
-          (m) => m.study === oraStudyId && m.type === startLabel
-        );
+        // Determine plannedStart based on phase
+        let plannedStart = "";
+        if (phase === "Startup" || phase === "All") {
+          plannedStart = getStartupAllDate(studyMilestones, oraStudyId);
+        } else {
+          const startMilestone = studyMilestones.find(
+            (m) => m.study === oraStudyId && m.type === startLabel
+          );
+          plannedStart = startMilestone ? getDateByPriority(startMilestone.data) : "";
+        }
+
+        // Determine plannedEnd (normal priority for all phases)
         const endMilestone = studyMilestones.find(
           (m) => m.study === oraStudyId && m.type === endLabel
         );
-
-        const plannedStart = startMilestone ? getDateByPriority(startMilestone.data, startLabel) : "";
-        const plannedEnd = endMilestone ? getDateByPriority(endMilestone.data, endLabel) : "";
+        const plannedEnd = endMilestone ? getDateByPriority(endMilestone.data) : "";
 
         const hasError = !plannedStart || !plannedEnd;
 
@@ -274,7 +297,6 @@ function App() {
       console.error("Error parsing milestone file:", err);
     }
   };
-
 
 
   // const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
@@ -329,34 +351,34 @@ function App() {
   };
 
   const handleRoleMappingUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const reader = new FileReader();
+    const reader = new FileReader();
 
-  reader.onload = (event) => {
-    const data = new Uint8Array(event.target.result);
-    const workbook = XLSX.read(data, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+    reader.onload = (event) => {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-    // Convert to mapping object
-    const mapping = {};
-    jsonData.forEach(row => {
-      const original = (row["Role"] || "").trim();
-      const correct = (row["Correct Role"] || "").trim();
-      if (original && correct) {
-        mapping[original] = correct;
-      }
-    });
+      // Convert to mapping object
+      const mapping = {};
+      jsonData.forEach(row => {
+        const original = (row["Role"] || "").trim();
+        const correct = (row["Correct Role"] || "").trim();
+        if (original && correct) {
+          mapping[original] = correct;
+        }
+      });
 
-    console.log("✅ Role Mapping Loaded:", mapping);
-    setRoleMapping(mapping);
+      console.log("✅ Role Mapping Loaded:", mapping);
+      setRoleMapping(mapping);
+    };
+
+    reader.readAsArrayBuffer(file);
   };
-
-  reader.readAsArrayBuffer(file);
-};
 
 
   const handleStudyCountry = async (e) => {
@@ -806,6 +828,80 @@ function App() {
   };
 
 
+  const handleLTFUDates = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+
+      // Assume first sheet contains OraStudyId, Start LTFU, End LTFU
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      // Helper: parse Excel date into yyyy-mm-dd
+      // Parse to consistent yyyy-mm-dd
+      const parseExcelDate = (val) => {
+        if (!val) return "";
+        if (typeof val === "number") {
+          const parsed = XLSX.SSF.parse_date_code(val);
+          if (parsed) {
+            return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d))
+              .toISOString()
+              .split("T")[0];
+          }
+        }
+        if (val instanceof Date) {
+          return val.toISOString().split("T")[0];
+        }
+        // Force Excel-like string (e.g. 1/31/2020) into proper Date
+        const dt = new Date(val);
+        if (!isNaN(dt)) {
+          return dt.toISOString().split("T")[0];
+        }
+        return val.toString().trim();
+      };
+
+      const ltfuMap = {};
+      json.forEach(row => {
+        const studyId = (row["OraStudyId"] || row["oraStudyId"] || "").toString().trim();
+        if (!studyId) return;
+
+        const start = parseExcelDate(row["Start LTFU"]);
+        const end = parseExcelDate(row["End LTFU"]);
+
+        ltfuMap[studyId] = { start, end };
+      });
+
+      console.log("📌 LTFU Map built:", ltfuMap);
+
+      // Update dataset
+      const newData = data.map(row => {
+        const studyId = (row.oraStudyId || "").toString().trim();
+        if (row.phase?.toLowerCase() === "ltfu" && ltfuMap[studyId]) {
+          return {
+            ...row,
+            plannedStart: ltfuMap[studyId].start || row.plannedStart,
+            plannedEnd: ltfuMap[studyId].end || row.plannedEnd,
+            comments: (!ltfuMap[studyId].start || !ltfuMap[studyId].end)
+              ? "Missing LTFU dates"
+              : row.comments
+          };
+        }
+        return row;
+      });
+
+      updateData(newData);
+
+      console.log("✅ Updated rows with LTFU dates applied:", newData);
+
+    } catch (err) {
+      console.error("❌ Error reading LTFU file:", err);
+    }
+  };
+
+
 
   return (
     <div className="m-4">
@@ -820,7 +916,7 @@ function App() {
         <label><strong>Upload exclode StudyID file</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleExclusionFileUpload} />
       </div>
-            <div className="mt-3">
+      <div className="mt-3">
         <label><strong>Upload roleMapping</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleRoleMappingUpload} />
       </div>
@@ -829,13 +925,17 @@ function App() {
         <input type="file" accept=".xlsx,.xls,.csv" onChange={handleMilestoneUpload} />
       </div>
       <div className="mt-3">
-        <label><strong>Upload Study Country & Site</strong></label>
+        <label><strong>Upload Study Country & Site(site)</strong></label>
         <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
       </div>
 
       <div className="mt-3">
-        <label><strong>Upload Schedule Level Milestone Meta</strong></label>
+        <label><strong>Upload Schedule Level Milestone Meta (study)</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
+      </div>
+      <div className="mt-3">
+        <label><strong>LTFU dates file</strong></label>
+        <input type="file" accept=".xlsx,.xls, .csv" onChange={handleLTFUDates} />
       </div>
       <Categories craData={cradata} errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
