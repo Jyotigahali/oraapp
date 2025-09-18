@@ -841,21 +841,20 @@ function App() {
       const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
       // Helper: parse Excel date into yyyy-mm-dd
-      // Parse to consistent yyyy-mm-dd
       const parseExcelDate = (val) => {
         if (!val) return "";
         if (typeof val === "number") {
           const parsed = XLSX.SSF.parse_date_code(val);
           if (parsed) {
-            return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d))
+            const dateStr = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d))
               .toISOString()
               .split("T")[0];
+            return dateStr;
           }
         }
         if (val instanceof Date) {
           return val.toISOString().split("T")[0];
         }
-        // Force Excel-like string (e.g. 1/31/2020) into proper Date
         const dt = new Date(val);
         if (!isNaN(dt)) {
           return dt.toISOString().split("T")[0];
@@ -863,45 +862,66 @@ function App() {
         return val.toString().trim();
       };
 
+      // Build LTFU map
       const ltfuMap = {};
       json.forEach(row => {
         const studyId = (row["OraStudyId"] || row["oraStudyId"] || "").toString().trim();
         if (!studyId) return;
-
         const start = parseExcelDate(row["Start LTFU"]);
         const end = parseExcelDate(row["End LTFU"]);
-
         ltfuMap[studyId] = { start, end };
       });
 
-      console.log("📌 LTFU Map built:", ltfuMap);
-
-      // Update dataset
+      // Collect LTFU errors
+      const ltfuErrorRows = [];
       const newData = data.map(row => {
         const studyId = (row.oraStudyId || "").toString().trim();
-        if (row.phase?.toLowerCase() === "ltfu" && ltfuMap[studyId]) {
+        if (row.phase?.toLowerCase() === "ltfu") {
+          const ltfu = ltfuMap[studyId];
+          // Study not in LTFU table
+          if (!ltfu) {
+            ltfuErrorRows.push({
+              ...row,
+              comments: "ORA Attention required"
+            });
+            return null;
+          }
+          // Date is 1900 (Excel default for missing date)
+          if (
+            (!ltfu.start || ltfu.start.startsWith("1900")) ||
+            (!ltfu.end || ltfu.end.startsWith("1900"))
+          ) {
+            ltfuErrorRows.push({
+              ...row,
+              plannedStart: ltfu.start,
+              plannedEnd: ltfu.end,
+              comments: "Not an LTFU study as per ORA"
+            });
+            return null;
+          }
+          // Valid LTFU dates
           return {
             ...row,
-            plannedStart: ltfuMap[studyId].start || row.plannedStart,
-            plannedEnd: ltfuMap[studyId].end || row.plannedEnd,
-            comments: (!ltfuMap[studyId].start || !ltfuMap[studyId].end)
-              ? "Missing LTFU dates"
-              : row.comments
+            plannedStart: ltfu.start || row.plannedStart,
+            plannedEnd: ltfu.end || row.plannedEnd,
+            comments: row.comments
           };
         }
         return row;
-      });
+      }).filter(Boolean);
 
       updateData(newData);
 
+      // Merge previous errors with new LTFU errors
+      setInvalidPhaseRows(prev => [...prev, ...ltfuErrorRows]);
+
       console.log("✅ Updated rows with LTFU dates applied:", newData);
+      console.log("❌ Error rows:", ltfuErrorRows);
 
     } catch (err) {
       console.error("❌ Error reading LTFU file:", err);
     }
   };
-
-
 
   return (
     <div className="m-4">
