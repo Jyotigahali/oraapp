@@ -19,7 +19,7 @@ function App() {
   const [excludedOraStudyIds, setExcludedOraStudyIds] = useState([]);
   const [roleMapping, setRoleMapping] = useState({});
 
-
+  const PHASE_ORDER = ["Startup", "Conduct", "LTFU", "DBL", "Closeout"];
 
   // You can change this to 25, 50, etc.
 
@@ -922,6 +922,77 @@ function App() {
       console.error("❌ Error reading LTFU file:", err);
     }
   };
+  const handleOverlapData = () => {
+    if (!data || data.length === 0) {
+      alert("No data available for overlap check");
+      return;
+    }
+
+    // Group by Study ID
+    const grouped = data.reduce((acc, row) => {
+      const id = row.oraStudyId;
+      if (!acc[id]) acc[id] = [];
+      acc[id].push(row);
+      return acc;
+    }, {});
+
+    const updatedRows = [];
+
+    Object.values(grouped).forEach(rows => {
+      // Sort by custom phase order
+      rows.sort((a, b) => {
+        return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
+      });
+
+      let prevEnd = null;
+
+      rows.forEach((row, idx) => {
+        const start = row.plannedStart ? new Date(row.plannedStart) : null;
+        const end = row.plannedEnd ? new Date(row.plannedEnd) : null;
+
+        let overlap = ""; // leave blank unless it’s a phase transition row
+
+        // Mark only first row of each phase
+        if (
+          idx === 0 || // first phase always gets a marker
+          row.phase !== rows[idx - 1].phase // new phase transition
+        ) {
+          if (prevEnd && start) {
+            overlap = prevEnd <= start ? "True" : "False";
+          } else {
+            overlap = "True"; // no previous to compare
+          }
+        }
+
+        updatedRows.push({
+          ...row,
+          Overlap: overlap,
+        });
+
+        if (end) prevEnd = end;
+      });
+    });
+
+    
+    updateData(updatedRows);
+
+    
+    const overlapFalseRows = updatedRows.filter(row => row.Overlap === "False");
+
+    if (overlapFalseRows.length === 0) {
+      alert("No overlap issues found");
+    } else {
+      const worksheet = XLSX.utils.json_to_sheet(overlapFalseRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Overlap Issues");
+      XLSX.writeFile(workbook, "overlap_check_false.xlsx");
+      console.log("✅ Overlap issues file exported with only 'False' rows");
+    }
+
+
+    console.log("✅ Overlap file exported in simplified format");
+  };
+
 
   return (
     <div className="m-4">
@@ -957,6 +1028,10 @@ function App() {
         <label><strong>LTFU dates file</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleLTFUDates} />
       </div>
+      <button onClick={handleOverlapData} className="btn btn-primary m-2">
+        Overlap File
+      </button>
+
       <Categories craData={cradata} errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
     </div>
