@@ -9,6 +9,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     const csvData = data.map(item => ({
       WorkItem: item.WorkItem,
       Activity: item.activity,
+      protocol: item.protocol,
       Begin: item.start,
       End: item.end,
       Role: item.finalResource,
@@ -47,6 +48,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     const csvData = data.map(item => ({
       WorkItem: item.WorkItem,
       Activity: item.activity,
+      protocol: item.protocol,
       Begin: item.start,
       End: item.end,
       // Role: item.role,

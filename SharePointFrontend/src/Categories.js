@@ -18,7 +18,7 @@ function Categories(props) {
     if(activeTab === 'region' && currentData.length > 0) {
       const rolledUpByRegion = Object.values(
         currentData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase, totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
+          const { resource, studyNumber,oraStudyId, protocol, phase, totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;      
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${resource}|${oraStudyId}|${phase}`;
           const region = resource.split("-")[0]
@@ -27,7 +27,8 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem: protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
+               WorkItem:studyNumber ? `${oraStudyId} - ${studyNumber}` : oraStudyId,
+              protocol: protocol,
               activity: phase,
               role: resource,
               start : plannedStart,
@@ -60,7 +61,7 @@ function Categories(props) {
     if(activeTab === 'country' && currentData.length > 0) {
       const rolledUpByCountry = Object.values(
         currentData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase,totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
+          const { resource,studyNumber, oraStudyId, protocol, phase,totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
       
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${country}|${oraStudyId}|${phase}|${resource}`;
@@ -71,7 +72,8 @@ function Categories(props) {
             acc[key] = {
               ...rest, // All other fields (Department, Sponsor, etc.)
               resource,
-              WorkItem:protocol ? `${oraStudyId} - ${protocol}` : oraStudyId,
+              WorkItem:studyNumber ? `${oraStudyId} - ${studyNumber}` : oraStudyId,
+              protocol: protocol,
               activity: phase,
               role: country ? `${region}-${country}` : resource,
               resourceRegion: country ? `${region}-${country}` : resource,
