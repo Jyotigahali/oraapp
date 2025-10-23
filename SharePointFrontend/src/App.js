@@ -18,6 +18,9 @@ function App() {
   const [cradata, setCraData] = useState([]);
   const [excludedOraStudyIds, setExcludedOraStudyIds] = useState([]);
   const [roleMapping, setRoleMapping] = useState({});
+  //const[updatedDataAfter, setUpdatedDataAfter]= useState([])
+  const [timeSheetData, setTimeSheetData] = useState([]);
+
 
   const PHASE_ORDER = ["Startup", "Conduct", "LTFU", "DBL", "Closeout"];
 
@@ -911,7 +914,7 @@ function App() {
       }).filter(Boolean);
 
       updateData(newData);
-
+     
       // Merge previous errors with new LTFU errors
       setInvalidPhaseRows(prev => [...prev, ...ltfuErrorRows]);
 
@@ -922,6 +925,8 @@ function App() {
       console.error("❌ Error reading LTFU file:", err);
     }
   };
+
+
   const handleOverlapData = () => {
     if (!data || data.length === 0) {
       alert("No data available for overlap check");
@@ -958,9 +963,9 @@ function App() {
           row.phase !== rows[idx - 1].phase // new phase transition
         ) {
           if (prevEnd && start) {
-            overlap = prevEnd <= start ? "True" : "False";
+            overlap = prevEnd <= start ? "False" : "True";
           } else {
-            overlap = "True"; // no previous to compare
+            overlap = "False"; // no previous to compare
           }
         }
 
@@ -973,11 +978,11 @@ function App() {
       });
     });
 
-    
+
     updateData(updatedRows);
 
-    
-    const overlapFalseRows = updatedRows.filter(row => row.Overlap === "False");
+
+    const overlapFalseRows = updatedRows.filter(row => row.Overlap === "True");
 
     if (overlapFalseRows.length === 0) {
       alert("No overlap issues found");
@@ -994,6 +999,132 @@ function App() {
   };
 
 
+  const handleTimeSheet = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Optional: Use updatedDataAfter instead of data for post-LTFU matching
+  // const referenceData = updatedDataAfter || data;
+  const referenceData = data;  // Using 'data' as per your current setup
+
+  if (!referenceData || referenceData.length === 0) {
+    console.warn("⚠️ Reference data (data or updatedDataAfter) is empty. Phases will be empty.");
+    // Still proceed to add empty Phase column
+  }
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+
+    // Assume the first sheet
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const timesheetData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+    console.log(`📊 Original Timesheet Rows: ${timesheetData.length}`);
+    console.log(`📊 Reference Data Rows: ${referenceData.length}`);
+    if (timesheetData.length === 0) {
+      alert("No data found in timesheet file.");
+      return;
+    }
+
+    // Helper: Parse any date format (Excel serial, Date object, string) to Date object
+    const parseDate = (dateValue) => {
+      if (!dateValue) return null;
+      let parsedDate;
+      if (typeof dateValue === "number") {
+        // Excel serial date
+        const parsed = XLSX.SSF.parse_date_code(dateValue);
+        if (parsed) {
+          parsedDate = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
+        }
+      } else if (dateValue instanceof Date) {
+        parsedDate = dateValue;
+      } else {
+        // Try parsing as string (handles "YYYY-MM-DD", "MM/DD/YYYY", etc.)
+        parsedDate = new Date(dateValue);
+      }
+      // Validate: Return null if invalid (e.g., NaN or 1900-01-01 default)
+      if (!parsedDate || isNaN(parsedDate) || parsedDate.getFullYear() === 1900) {
+        return null;
+      }
+      return parsedDate;
+    };
+
+    let matchCount = 0;
+    let unmatchedCount = 0;
+
+    // Process each timesheet row (ALWAYS include every row)
+    const updatedTimesheet = timesheetData.map((row, index) => {
+      const projectNumber = (row["Project Number"] || "").toString().trim();
+      const role = (row["Role"] || "").toString().trim();
+      const dateStr = row["Date"];
+      const tsDate = parseDate(dateStr);
+
+      let phase = ""; // Default empty phase
+
+      // If key fields missing or date invalid, skip matching but still add row
+      if (!projectNumber || !role) {
+        unmatchedCount++;
+        console.log(`Row ${index}: Missing Project Number or Role (Proj: "${projectNumber}", Role: "${role}")`);
+      } else if (!tsDate) {
+        unmatchedCount++;
+        console.log(`Row ${index}: Invalid Date "${dateStr}" (Proj: "${projectNumber}", Role: "${role}")`);
+      } else {
+        // Find matching rows in referenceData (case-insensitive trim for robustness)
+        const matchedRows = referenceData.filter(
+          (d) =>
+            d.oraStudyId?.toString().trim().toLowerCase() === projectNumber.toLowerCase() &&
+            d.finalResource?.toString().trim().toLowerCase() === role.toLowerCase()
+        );
+
+        if (matchedRows.length === 0) {
+          unmatchedCount++;
+          console.log(`Row ${index}: No match for Proj: "${projectNumber}", Role: "${role}"`);
+        } else {
+          // Check each match: if timesheet date is STRICTLY > plannedStart && < plannedEnd, use that phase
+          matchedRows.forEach((match) => {
+            const plannedStart = parseDate(match.plannedStart);
+            const plannedEnd = parseDate(match.plannedEnd);
+
+            if (plannedStart && plannedEnd && !isNaN(plannedStart) && !isNaN(plannedEnd)) {
+              // Client spec: greater than start AND less than end
+              if (tsDate > plannedStart && tsDate < plannedEnd) {
+                phase = match.phase || "";
+                matchCount++;
+                return; // Use first valid match (stop checking others)
+              }
+            }
+          });
+
+          if (!phase) {
+            unmatchedCount++;
+            console.log(`Row ${index}: Date "${tsDate.toISOString().split('T')[0]}" not in range for Proj: "${projectNumber}", Role: "${role}" (matches: ${matchedRows.length})`);
+          }
+        }
+      }
+
+      // ALWAYS add the row with new "Phase" column (preserves all original columns)
+      return {
+        ...row,
+        Phase: phase  // Note: Capitalized "Phase" as per client spec
+      };
+    });
+
+    console.log(`✅ Updated Timesheet with Phase: ${updatedTimesheet.length} rows (Matches: ${matchCount}, Unmatched: ${unmatchedCount})`);
+    console.log("Sample updated row:", updatedTimesheet[0]);
+
+    // Export updated timesheet to Excel (all original columns + new "Phase" as last column)
+    const worksheet = XLSX.utils.json_to_sheet(updatedTimesheet);
+    const newWorkbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(newWorkbook, worksheet, "Updated Timesheet");
+    XLSX.writeFile(newWorkbook, "updated_timesheet_with_phase.xlsx");
+
+    alert(`Timesheet processed! Downloaded ${updatedTimesheet.length} rows with Phase column. Check console for unmatched rows.`);
+  } catch (err) {
+    console.error("❌ Error processing timesheet file:", err);
+    alert("Error processing timesheet file. Check console for details.");
+  }
+};
   return (
     <div className="m-4">
       <h3>Import All Active Excel Files</h3>
@@ -1028,6 +1159,12 @@ function App() {
         <label><strong>LTFU dates file</strong></label>
         <input type="file" accept=".xlsx,.xls, .csv" onChange={handleLTFUDates} />
       </div>
+      
+      <div className="mt-3">
+        <label><strong>Upload Timesheet File</strong></label>
+        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleTimeSheet} />
+      </div>
+
       <button onClick={handleOverlapData} className="btn btn-primary m-2">
         Overlap File
       </button>
