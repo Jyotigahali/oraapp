@@ -9,7 +9,6 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     const csvData = data.map(item => ({
       WorkItem: item.WorkItem,
       Activity: item.activity,
-      protocol: item.protocol,
       Begin: item.start,
       End: item.end,
       Role: item.finalResource,
@@ -21,14 +20,46 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       ...(activeTab === "country"
         ? { "Hrs Per Ctry": item.SiteHrs, Country: item.country }
         : {}),
-      "Value(FTE)": loadFTE(item),
+      "Value": loadFTE(item),
       CID: "",
       MID: "",
       MIM: "",
       // "_Resource Region": item.resourceRegion,
-      "Resource Region": item.region,
+      "_Resource Region": item.region,
+      "_Protocol": item.protocol,
       // "_Therapeutic Area":  item.therapeuticArea,
-      "Therapeutic Area": item.Department,
+      "_Therapeutic Area": item.Department,
+      _Sponsor: item.Sponsor,
+      "_Current Project Status": item.currentProjectStatus,
+      _Indication: item.Indication,
+      "_Enrollment Method": item.enrollmentMethod,
+      "_Study Nickname": item.studyNumber,
+      "_OraProject ID": item.oraStudyId,
+      "_# of Sites": item.noOfSites,
+      "_# of Countries": item.noOfCountries,
+      "_Name of Country(ies)": item.nameOfCountries,
+      [activeTab === "country" ? "Country" : ""]: activeTab === "country" ? item.country : "",
+      // "_Study Site": item.site,    
+    }));
+    exportToCSV(csvData, `RoleUp_${activeTab}_RM_Demand.csv`);
+  }
+  const handleExportDemand2 = (data) => {
+    const csvData = data.map(item => ({
+      WorkItem: item.WorkItem,
+      Activity: item.activity,
+      Begin: item.start,
+      End: item.end,
+      Role: item.finalResource,
+      Complexity: "Medium",
+     
+      CID: "",
+      MID: "",
+      MIM: "",
+      // "_Resource Region": item.resourceRegion,
+      "_Resource Region": item.region,
+      "_Protocol": item.protocol,
+      // "_Therapeutic Area":  item.therapeuticArea,
+      "_Therapeutic Area": item.Department,
       _Sponsor: item.Sponsor,
       "_Current Project Status": item.currentProjectStatus,
       _Indication: item.Indication,
@@ -48,12 +79,12 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     const csvData = data.map(item => ({
       WorkItem: item.WorkItem,
       Activity: item.activity,
-      protocol: item.protocol,
       Begin: item.start,
       End: item.end,
       // Role: item.role,
       // "Resource Region": item.role,
       "Resource Region": item.region,
+      "Protocol": item.protocol,
       //  "Therapeutic Area":  item.therapeuticArea,
       "Therapeutic Area": item.Department,
       Sponsor: item.Sponsor,
@@ -101,6 +132,9 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       <h4 className="my-2">Rolled Up By {activeTab?.toUpperCase()} </h4>
       <Button className="m-2" onClick={() => handleExportDemand(data)}>
         Export as CSV For RM: Demand
+      </Button>
+      <Button className="m-2" onClick={() => handleExportDemand2(data)}>
+        Export as CSV For RM: Demand2
       </Button>
       <Button className="m-2" onClick={() => handleExportSchedule(data)}>
         Export as CSV For RM: Schedule
