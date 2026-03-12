@@ -249,17 +249,14 @@ function App() {
 
                 return ""; // nothing found
             };
-
             // Filter and structure milestones
             const studyMilestones = json
-                .filter(row => !row["Study Country"]?.trim()) // Only keep rows where Study Country is blank
                 .map((row) => ({
                     study: row["Ora Project Code"]?.trim(),
                     type: row["Milestone Type"]?.trim(),
                     data: row,
                 }))
                 .filter((r) => r.study && r.type);
-
             const phaseDateReference = [
                 { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
                 { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
@@ -742,7 +739,7 @@ function App() {
                 Object.keys(entry).forEach(key => {
                     cleanedEntry[key.trim()] = entry[key]; // Trim key names
                 });
-                
+
                 return cleanedEntry;
             });
 
@@ -1046,100 +1043,100 @@ function App() {
         console.log("✅ Overlap file exported in simplified format");
     };
 
-const handleTimeSheet = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    console.log("📥 Timesheet file uploaded:", file.name);
+    const handleTimeSheet = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        console.log("📥 Timesheet file uploaded:", file.name);
 
-    const referenceData = data;
+        const referenceData = data;
 
-    if (!referenceData || referenceData.length === 0) {
-        console.warn("⚠️ Reference data is empty. Phases will be empty.");
-    }
-
-    try {
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-        if (!rawData || rawData.length === 0) {
-            alert("No data found in timesheet file.");
-            return;
+        if (!referenceData || referenceData.length === 0) {
+            console.warn("⚠️ Reference data is empty. Phases will be empty.");
         }
 
-        const headers = rawData[0].map(h => h.toString().trim());
-        const timesheetData = rawData.slice(1).map(row => {
-            const obj = {};
-            headers.forEach((h, i) => obj[h] = row[i]);
-            return obj;
-        });
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: "buffer" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        const parseDate = (dateValue) => {
-            if (!dateValue) return null;
-            if (typeof dateValue === "number") {
-                const parsed = XLSX.SSF.parse_date_code(dateValue);
-                return parsed ? new Date(parsed.y, parsed.m - 1, parsed.d) : null;
+            const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            if (!rawData || rawData.length === 0) {
+                alert("No data found in timesheet file.");
+                return;
             }
-            return new Date(dateValue);
-        };
 
-        const updatedTimesheet = timesheetData.map(row => {
-            const projectNumber = (row["Project Number"] || "").toString().trim();
-            const dateStr = row["Date"];
-            const tsDate = parseDate(dateStr);
+            const headers = rawData[0].map(h => h.toString().trim());
+            const timesheetData = rawData.slice(1).map(row => {
+                const obj = {};
+                headers.forEach((h, i) => obj[h] = row[i]);
+                return obj;
+            });
 
-            let phase = "";
+            const parseDate = (dateValue) => {
+                if (!dateValue) return null;
+                if (typeof dateValue === "number") {
+                    const parsed = XLSX.SSF.parse_date_code(dateValue);
+                    return parsed ? new Date(parsed.y, parsed.m - 1, parsed.d) : null;
+                }
+                return new Date(dateValue);
+            };
 
-            if (projectNumber && tsDate) {
-                // Match only by Project Number and exclude empty or "All" phases
-                const matchedRows = referenceData.filter(d =>
-                    d.oraStudyId?.toString().trim().toLowerCase() === projectNumber.toLowerCase() &&
-                    d.phase && d.phase.trim() !== "" && d.phase.trim().toLowerCase() !== "all"
-                );
+            const updatedTimesheet = timesheetData.map(row => {
+                const projectNumber = (row["Project Number"] || "").toString().trim();
+                const dateStr = row["Date"];
+                const tsDate = parseDate(dateStr);
 
-                // Stop at the first valid match
-                for (let match of matchedRows) {
-                    const plannedStart = parseDate(match.plannedStart);
-                    const plannedEnd = parseDate(match.plannedEnd);
+                let phase = "";
 
-                    if (plannedStart && plannedEnd) {
-                        // Compare month and year only
-                        const tsMonth = tsDate.getMonth();
-                        const tsYear = tsDate.getFullYear();
-                        const startMonth = plannedStart.getMonth();
-                        const startYear = plannedStart.getFullYear();
-                        const endMonth = plannedEnd.getMonth();
-                        const endYear = plannedEnd.getFullYear();
+                if (projectNumber && tsDate) {
+                    // Match only by Project Number and exclude empty or "All" phases
+                    const matchedRows = referenceData.filter(d =>
+                        d.oraStudyId?.toString().trim().toLowerCase() === projectNumber.toLowerCase() &&
+                        d.phase && d.phase.trim() !== "" && d.phase.trim().toLowerCase() !== "all"
+                    );
 
-                        const afterStart = tsYear > startYear || (tsYear === startYear && tsMonth >= startMonth);
-                        const beforeEnd = tsYear < endYear || (tsYear === endYear && tsMonth <= endMonth);
+                    // Stop at the first valid match
+                    for (let match of matchedRows) {
+                        const plannedStart = parseDate(match.plannedStart);
+                        const plannedEnd = parseDate(match.plannedEnd);
 
-                        if (afterStart && beforeEnd) {
-                            phase = match.phase;
-                            break; // Use the first valid match and stop
+                        if (plannedStart && plannedEnd) {
+                            // Compare month and year only
+                            const tsMonth = tsDate.getMonth();
+                            const tsYear = tsDate.getFullYear();
+                            const startMonth = plannedStart.getMonth();
+                            const startYear = plannedStart.getFullYear();
+                            const endMonth = plannedEnd.getMonth();
+                            const endYear = plannedEnd.getFullYear();
+
+                            const afterStart = tsYear > startYear || (tsYear === startYear && tsMonth >= startMonth);
+                            const beforeEnd = tsYear < endYear || (tsYear === endYear && tsMonth <= endMonth);
+
+                            if (afterStart && beforeEnd) {
+                                phase = match.phase;
+                                break; // Use the first valid match and stop
+                            }
                         }
                     }
                 }
-            }
 
-            return {
-                ...row,
-                Phase: phase
-            };
-        });
+                return {
+                    ...row,
+                    Phase: phase
+                };
+            });
 
-        const worksheet = XLSX.utils.json_to_sheet(updatedTimesheet);
-        const newWorkbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(newWorkbook, worksheet, "Updated Timesheet");
-        XLSX.writeFile(newWorkbook, "updated_timesheet_with_phase.xlsx");
+            const worksheet = XLSX.utils.json_to_sheet(updatedTimesheet);
+            const newWorkbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(newWorkbook, worksheet, "Updated Timesheet");
+            XLSX.writeFile(newWorkbook, "updated_timesheet_with_phase.xlsx");
 
-        alert(`Timesheet processed! Downloaded ${updatedTimesheet.length} rows with Phase column.`);
-    } catch (err) {
-        console.error("❌ Error processing timesheet file:", err);
-        alert("Error processing timesheet file. Check console for details.");
-    }
-};
+            alert(`Timesheet processed! Downloaded ${updatedTimesheet.length} rows with Phase column.`);
+        } catch (err) {
+            console.error("❌ Error processing timesheet file:", err);
+            alert("Error processing timesheet file. Check console for details.");
+        }
+    };
 
 
     return (

@@ -11,6 +11,7 @@ function EmployeeAutomation() {
   const [excludedEmployees, setExcludedEmployees] = useState([]);
   const [comparisonData, setComparisonData] = useState(null);
   const [netSuiteEmployees, setNetSuiteEmployees] = useState([]);
+  const [excludeFileEmployees, setExcludeFileEmployees] = useState([]);
 
   // File upload handler
   const handleFileUpload = (e, setFileData) => {
@@ -20,10 +21,19 @@ function EmployeeAutomation() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const data = evt.target.result;
-      const workbook = XLSX.read(data, { type: 'binary' });
+
+      const workbook = XLSX.read(data, {
+        type: 'binary',
+        cellDates: true   // ✅ converts Excel date serials to real dates
+      });
+
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+      const jsonData = XLSX.utils.sheet_to_json(sheet, {
+        raw: false        // ✅ formats date correctly
+      });
+
       setFileData(jsonData);
     };
 
@@ -34,6 +44,43 @@ function EmployeeAutomation() {
     }
   };
 
+
+  const parseDateSafe = (value) => {
+    if (!value) return "";
+
+    let date;
+
+    if (value instanceof Date && !isNaN(value)) {
+      date = value;
+    } else if (typeof value === "number") {
+      date = new Date((value - 25569) * 86400 * 1000);
+    } else if (typeof value === "string") {
+      const trimmed = value.trim();
+      const parsed = new Date(trimmed);
+
+      if (!isNaN(parsed)) {
+        date = parsed;
+      } else {
+        const parts = trimmed.split("-");
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          date = new Date(year, month, day);
+        }
+      }
+    }
+
+    if (date instanceof Date && !isNaN(date)) {
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const yyyy = date.getFullYear();
+
+      return `${mm}/${dd}/${yyyy}`; // MM/DD/YYYY
+    }
+
+    return "";
+  };
   // Step 1: Handle Excluded Employees (Role="Exclude")
   // Step 1: Handle Excluded Employees FROM SANDBOX (RM)
   // Step 1: Handle Excluded Employees FROM SANDBOX (RM)
@@ -123,24 +170,40 @@ function EmployeeAutomation() {
 
   // Map ADP fields to output structure
   const mapADPEmployee = (adpEmp, rmEmp = {}) => {
+
+    const roleValue = adpEmp["Role"] || "";
+    let derivedRegion = "";
+
+    if (roleValue.includes("-")) {
+      derivedRegion = roleValue.split("-")[1]?.trim() || "";
+    }
+
+
+    const jobFuncDesc = adpEmp["Job Function Description"] || "";
+    const jobFuncLower = jobFuncDesc.toLowerCase();
+
+    const contractorValue =
+      jobFuncLower.includes("per diem employee") || jobFuncLower.includes("contractor")
+        ? "Yes"
+        : "No";
     return {
       "First Name": adpEmp["Legal First Name"] || "",
       "Last Name": adpEmp["Legal Last Name"] || "",
       "Title": adpEmp["Job Title Description"] || "",
       "Role": adpEmp["Role"] || "",
-      "Region": "",
+      "Region": derivedRegion,
       "Sub-Region": "",
       "Email": adpEmp["Work Contact: Work Email"] || "",
       "Employee ID": adpEmp["Associate ID"] || "",
-      "Manager ID": "",
+      "Manager ID": adpEmp["Reports To Legal Name"] || "",
       "Cost Center": adpEmp["Home Department Description"] || "",
       "Work-time %": rmEmp["Work-time %"] || "100",
       "Billing Rate": rmEmp["Billing Rate"] || "",
-      "Contractor": "",
+      "Contractor": contractorValue,
       "Employee Type": adpEmp["Worker Category Description"] || "",
       "Position Status": adpEmp["Position Status"] || "",
-      "Custom 1": adpEmp["Hire/Rehire Date"] || "",
-      "Custom 2": adpEmp["Job Function Description"] || "",
+      "Hire/Rehire Date": parseDateSafe(adpEmp["Hire/Rehire Date"]),
+      "Job Function Description": adpEmp["Job Function Description"] || "",
       "Custom 3": rmEmp["Billable or Non-Billable or Partially Billable"] || "",
       "Custom 4": "",
       "Custom 5": "",
@@ -168,8 +231,8 @@ function EmployeeAutomation() {
       "Contractor": rmEmp["Contractor"] || "",
       "Employee Type": rmEmp["Employee Type"] || "",
       "Position Status": rmEmp["Position Status"] || "",
-      "Custom 1": rmEmp["Hire/Rehire Date"] || "",
-      "Custom 2": rmEmp["Job Function Description"] || "",
+      "Hire/Rehire Date": parseDateSafe(rmEmp["Hire/Rehire Date"]),
+      "Job Function Description": rmEmp["Job Function Description"] || "",
       "Custom 3": rmEmp["Billable or Non-Billable or Partially Billable"] || "",
       "Custom 4": rmEmp["Custom 4"] || "",
       "Custom 5": rmEmp["Custom 5"] || "",
@@ -177,46 +240,58 @@ function EmployeeAutomation() {
     };
   };
 
-const updateFromNetSuite = () => {
-  if (!netSuiteEmployees.length || !processedEmployees.length) {
-    alert("Upload NetSuite and generate file first!");
-    return;
-  }
-
-  const netSuiteMap = new Map();
-
-  // Create a map keyed by ADP ID
-  netSuiteEmployees.forEach(emp => {
-    const rawId = emp["ADP ID"];
-    if (rawId) {
-      const key = String(rawId).trim().toUpperCase();
-      netSuiteMap.set(key, emp);
-    }
-  });
-
-  // Update processed employees
-  const updatedEmployees = processedEmployees.map(emp => {
-    const rawId = emp["Employee ID"];
-    if (!rawId) return emp;
-
-    const adpId = String(rawId).trim().toUpperCase();
-    const nsRecord = netSuiteMap.get(adpId);
-
-    if (nsRecord) {
-      return {
-        ...emp,
-        "Cost Center": nsRecord["Service Line"]?.trim() || emp["Cost Center"],
-        "Custom 3": nsRecord["Billable, Non-Billable or Partially Billable"]?.trim() || emp["Custom 3"],
-        "Work-time %": nsRecord["FTE"]?.toString().trim() || emp["Work-time %"]  // ✅ Add FTE mapping here
-      };
+  const updateFromNetSuite = () => {
+    if (!netSuiteEmployees.length || !processedEmployees.length) {
+      alert("Upload NetSuite and generate file first!");
+      return;
     }
 
-    return emp;
-  });
+    const netSuiteMap = new Map();
 
-  setProcessedEmployees(updatedEmployees);
-  alert("NetSuite mapping completed (Cost Center, Custom 3, and Work-time % updated).");
-};
+    // Create a map keyed by ADP ID
+    netSuiteEmployees.forEach(emp => {
+      const rawId = emp["ADP ID"];
+      if (rawId) {
+        const key = String(rawId).trim().toUpperCase();
+        netSuiteMap.set(key, emp);
+      }
+    });
+
+    // Update processed employees
+    const updatedEmployees = processedEmployees.map(emp => {
+      const rawId = emp["Employee ID"];
+      if (!rawId) return emp;
+
+      const adpId = String(rawId).trim().toUpperCase();
+      const nsRecord = netSuiteMap.get(adpId);
+
+
+      if (nsRecord) {
+        let workTimeValue = "100"; // default
+
+        const fteRaw = nsRecord["FTE"];
+
+        if (fteRaw !== undefined && fteRaw !== null && fteRaw !== "") {
+          const fteNumber = parseFloat(fteRaw);
+          if (!isNaN(fteNumber)) {
+            workTimeValue = (fteNumber * 100).toString();
+          }
+        }
+
+        return {
+          ...emp,
+          "Cost Center": nsRecord["Service Line"]?.trim() || emp["Cost Center"],
+          "Custom 3": nsRecord["Billable, Non-Billable or Partially Billable"]?.trim() || emp["Custom 3"],
+          "Work-time %": workTimeValue   // ✅ multiplied value
+        };
+      }
+
+      return emp;
+    });
+
+    setProcessedEmployees(updatedEmployees);
+    alert("NetSuite mapping completed (Cost Center, Custom 3, and Work-time % updated).");
+  };
   // Step 3: Generate New Employee File
   // Step 3: Generate New Employee File
   const generateNewFile = () => {
@@ -319,6 +394,41 @@ const updateFromNetSuite = () => {
     });
   };
 
+
+  const excludeFromProcessedFile = () => {
+    if (!excludeFileEmployees.length || !processedEmployees.length) {
+      alert("Upload Exclude File and generate processed file first!");
+      return;
+    }
+
+    // Get column name dynamically
+    const firstRow = excludeFileEmployees[0];
+    const associateColumn = Object.keys(firstRow).find(col =>
+      col.toLowerCase().includes("associate")
+    );
+
+    if (!associateColumn) {
+      alert("Associate ID column not found in Exclude file!");
+      return;
+    }
+
+    const excludeIds = new Set(
+      excludeFileEmployees
+        .map(emp => emp[associateColumn]?.toString().trim().toUpperCase())
+        .filter(Boolean)
+    );
+
+    const filteredEmployees = processedEmployees.filter(emp =>
+      !excludeIds.has(emp["Employee ID"]?.toString().trim().toUpperCase())
+    );
+
+    const removedCount = processedEmployees.length - filteredEmployees.length;
+
+    setProcessedEmployees(filteredEmployees);
+
+    alert(`⚠️ ${removedCount} employees removed from processed file.`);
+  };
+
   // Export Employee File
   const exportNewFile = () => {
     if (!processedEmployees.length) {
@@ -332,6 +442,13 @@ const updateFromNetSuite = () => {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    for (let cell in worksheet) {
+      if (worksheet[cell]?.v instanceof Date) {
+        worksheet[cell].t = "d";
+        worksheet[cell].z = "dd-mm-yyyy";  // your required format
+      }
+    }
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "EmployeeFile");
 
@@ -416,6 +533,22 @@ const updateFromNetSuite = () => {
             )}
           </div>
         </Col>
+        <Col md={6}>
+          <div className="border p-3 rounded">
+            <h5>Step 4: Upload Exclude File</h5>
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={(e) => handleFileUpload(e, setExcludeFileEmployees)}
+              className="form-control"
+            />
+            {excludeFileEmployees.length > 0 && (
+              <Alert variant="success">
+                ✓ Loaded {excludeFileEmployees.length} Exclude records
+              </Alert>
+            )}
+          </div>
+        </Col>
       </Row>
 
       <Row className="mb-3">
@@ -444,6 +577,14 @@ const updateFromNetSuite = () => {
           </Button>
           <Button variant="success" onClick={exportNewFile} disabled={!processedEmployees.length} className="me-2">
             Export Employee File
+          </Button>
+          <Button
+            variant="danger"
+            onClick={excludeFromProcessedFile}
+            disabled={!excludeFileEmployees.length || !processedEmployees.length}
+            className="me-2"
+          >
+            Exclude File
           </Button>
           <Button variant="info" onClick={exportComparisonReport} disabled={!comparisonData}>
             Export Comparison Report
