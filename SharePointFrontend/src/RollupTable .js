@@ -39,6 +39,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       "_# of Sites": item.noOfSites,
       "_# of Countries": item.noOfCountries,
       "_Name of Country(ies)": item.nameOfCountries,
+      "_Probability": item.Probability || "",
       [activeTab === "country" ? "Country" : ""]: activeTab === "country" ? item.country : "",
       // "_Study Site": item.site,    
     }));
@@ -71,6 +72,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       "_# of Sites": item.noOfSites,
       "_# of Countries": item.noOfCountries,
       "_Name of Country(ies)": item.nameOfCountries,
+      "_Probability": item.Probability || "",
       [activeTab === "country" ? "Country" : ""]: activeTab === "country" ? item.country : "",
       // "_Study Site": item.site,    
     }));
@@ -99,6 +101,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
       "# of Sites": item.noOfSites,
       "# of Countries": item.noOfCountries,
       "Name of Country(ies)": item.nameOfCountries,
+        "Probability": item.Probability || "",
       "Study Site": item.site,
     }));
     exportToCSV(csvData, `RoleUp_${activeTab}_RM_Schedule.csv`);
@@ -163,6 +166,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
             <th>Region</th>
             <th>Name of Country</th>
             <th>Indecation</th>
+            <th>Probability</th>
             {/* Add any other columns you want to display */}
           </tr>
         </thead>
@@ -187,6 +191,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
               <td>{row.region}</td>
               <td>{row.nameOfCountries}</td>
               <td>{row.Indication}</td>
+              <td>{row.Probability || ""}</td>
               {/* Add more <td> if needed */}
             </tr>
           ))}

@@ -825,15 +825,17 @@ function App() {
                 ...row,
                 Department: match?.["Department"] || "",
                 Sponsor: match?.["Sponsor"] || "",
-                currentProjectStatus: match?.["** Current Project Phase"] || "",
+                currentProjectStatus: match?.["**Current Project Phase"] || "",
                 Status: match?.["Status"] || "",
                 Indication: match?.["Indication Picklist"] || "",
-                enrollmentMethod: match?.["** Enrollment Method"] || "",
+                enrollmentMethod: match?.["**Enrollment Method"] || "",
                 studyNumber: match?.["Study Number"] || "",
                 therapeuticArea: match?.["Therapeutic Area"] || "",
                 noOfSites: match?.["Number of Sites"] || "",
                 noOfCountries: match?.["Country"]?.split(',').length || 0,
                 nameOfCountries: match?.["Country"] || "",
+                Probability: match?.["Probability"] || "",
+                
                 ["In Veeva?"]: match ? "Yes" : "No",  // ✅ New field
             };
         });

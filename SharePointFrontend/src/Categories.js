@@ -62,7 +62,7 @@ function Categories(props) {
     if(activeTab === 'country' && currentData.length > 0) {
       const rolledUpByCountry = Object.values(
         currentData.reduce((acc, curr) => {
-          const { resource,studyNumber, oraStudyId, protocol, phase,totalHrs, SiteHrs,hrsPerUnit,country, units,plannedStart,plannedEnd, ...rest } = curr;
+          const { resource,studyNumber, oraStudyId, protocol, phase,totalHrs, SiteHrs,hrsPerUnit,country, units,Probability,plannedStart,plannedEnd, ...rest } = curr;
       
           // Key to group by: combination of resource + oraStudyId + protocol
           const key = `${country}|${oraStudyId}|${phase}|${resource}`;
@@ -85,6 +85,7 @@ function Categories(props) {
               units: 0,
               hrsPerUnit: 0,
               studyNumber: studyNumber,
+              Probability: Probability,
               region: resource.split("-")[1],
               oraStudyId,
               protocol,
@@ -109,7 +110,7 @@ function Categories(props) {
       console.log("craData", craData);
       const rolledUpByCRA = Object.values(
         craData.reduce((acc, curr) => {
-          const { resource, oraStudyId, protocol, phase,SiteHrs, totalHrs,hrsPerUnit,CraCountry, units,plannedStart,plannedEnd,CraSite, ...rest } = curr;
+          const { resource, oraStudyId, protocol, phase,SiteHrs, totalHrs,hrsPerUnit,CraCountry, units,Probability,plannedStart,plannedEnd,CraSite, ...rest } = curr;
           const key = `${CraSite}|${oraStudyId}|${phase}|${resource}`;
           const region = resource.split("-")[0];
           const siteHrs = parseFloat(SiteHrs) || 0;
@@ -128,6 +129,7 @@ function Categories(props) {
               SiteHrs: 0,
               units: 0,
               hrsPerUnit: 0,
+              Probability: Probability || "",
               region: resource.split("-")[1],
               country: CraCountry,
               site: CraSite,
@@ -242,6 +244,7 @@ function Categories(props) {
                 <th>Site</th>
                 <th>TotalSite</th>
                 <th>SiteHrs</th>
+                <th>Probability   </th>
                 <th>Revised Demand</th>
                 {/* <th>Country Demand</th> */}
                 <th>Department</th>
@@ -272,6 +275,7 @@ function Categories(props) {
                   <td>{row.site || ""}</td>
                   <td>{row.TotalSite}</td>
                   <td>{row.SiteHrs}</td>
+                  <td>{row.Probability || ""}</td>
                   <td>{row.revisedDemand || ""}</td>
                   {/* <td>{row.countryDemand}</td> */}
                   <td>{row.Department || ""}</td>
