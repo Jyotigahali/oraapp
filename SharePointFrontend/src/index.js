@@ -9,6 +9,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./Home";
 import EmployeeAutomation from "./EmployeeAutomation";
+import TimesheetAutomation from "./TimeshheetAutomation";  
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -17,6 +18,7 @@ root.render(
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/employee-automation" element={<EmployeeAutomation />} />
+      <Route path="/timesheet-automation" element={<TimesheetAutomation />} />  
     </Routes>
   </BrowserRouter>
 );

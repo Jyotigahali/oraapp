@@ -3,14 +3,51 @@ import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Button } from 'react-bootstrap';
 
+const formatDate = (dateValue) => {
+  if (!dateValue) return "";
+
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return "";
+
+  const month = d.getMonth() + 1; // no leading zero
+  const day = String(d.getDate()).padStart(2, "0");
+  const year = d.getFullYear();
+
+  return `${month}/${day}/${year}`;
+};
+
+const removeScheduleDuplicates = (rows) => {
+  const seen = new Set();
+
+  return rows.filter(row => {
+    const key = [
+      row.WorkItem,
+      row.Activity,
+      row.Begin,
+      row.End,
+      row["Resource Region"],
+      row.Protocol,
+      row["Therapeutic Area"],
+      row["Study Nickname"],
+      row["Study Site"]
+    ].join("|");
+
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+};
+
 const RollupTable = ({ data, exportToCSV, activeTab }) => {
   console.log("RollupTable data", data);
   const handleExportDemand = (data) => {
     const csvData = data.map(item => ({
       WorkItem: item.WorkItem,
       Activity: item.activity,
-      Begin: item.start,
-      End: item.end,
+      Begin: formatDate(item.start),
+      End: formatDate(item.end),
       Role: item.finalResource,
       Complexity: "Medium",
       Duration: loadMonths(item),
@@ -49,8 +86,8 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     const csvData = data.map(item => ({
       WorkItem: item.WorkItem,
       Activity: item.activity,
-      Begin: item.start,
-      End: item.end,
+      Begin: formatDate(item.start),
+      End: formatDate(item.end),
       Role: item.finalResource,
       Complexity: "Medium",
       "Value": loadFTE(item),
@@ -80,32 +117,33 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
   }
 
   const handleExportSchedule = (data) => {
-    const csvData = data.map(item => ({
-      WorkItem: item.WorkItem,
-      Activity: item.activity,
-      Begin: item.start,
-      End: item.end,
-      // Role: item.role,
-      // "Resource Region": item.role,
-      "Resource Region": item.region,
-      "Protocol": item.protocol,
-      //  "Therapeutic Area":  item.therapeuticArea,
-      "Therapeutic Area": item.Department,
-      Sponsor: item.Sponsor,
-      "Current Project Status": item.currentProjectStatus,
-      "_Status": item.Status,
-      Indication: item.Indication,
-      "Enrollment Method": item.enrollmentMethod,
-      "Study Nickname": item.studyNumber,
-      "OraProject ID": item.oraStudyId,
-      "# of Sites": item.noOfSites,
-      "# of Countries": item.noOfCountries,
-      "Name of Country(ies)": item.nameOfCountries,
-        "Probability": item.Probability || "",
-      "Study Site": item.site,
-    }));
-    exportToCSV(csvData, `RoleUp_${activeTab}_RM_Schedule.csv`);
-  }
+  let csvData = data.map(item => ({
+    WorkItem: item.WorkItem,
+    Activity: item.activity,
+    Begin: formatDate(item.start),
+    End: formatDate(item.end),
+    "Resource Region": item.region,
+    Protocol: item.protocol,
+    "Therapeutic Area": item.Department,
+    Sponsor: item.Sponsor,
+    "Current Project Status": item.currentProjectStatus,
+    "_Status": item.Status,
+    Indication: item.Indication,
+    "Enrollment Method": item.enrollmentMethod,
+    "Study Nickname": item.studyNumber,
+    "OraProject ID": item.oraStudyId,
+    "# of Sites": item.noOfSites,
+    "# of Countries": item.noOfCountries,
+    "Name of Country(ies)": item.nameOfCountries,
+    Probability: item.Probability || "",
+    "Study Site": item.site,
+  }));
+
+  // ✅ DEDUP HERE
+  csvData = removeScheduleDuplicates(csvData);
+
+  exportToCSV(csvData, `RoleUp_${activeTab}_RM_Schedule.csv`);
+};
 
   const loadFTE = (row) => {
     const totalHrs = row.totalHrs;

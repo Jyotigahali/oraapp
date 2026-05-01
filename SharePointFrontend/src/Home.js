@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
-import axios from "axios";
 import { Spinner, } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Categories from "./Categories";
@@ -37,22 +36,7 @@ function App() {
         setData(newData);
         setCurrentPage(1);
     };
-    // useEffect(() => {
-    //   axios.get("http://localhost:3001/api/fetch-files")
-    //     .then((response) => {
-    //       // setFiles(response.data);
-    //       console.log("📁 Files:", response);
-    //       setLoading(false);
-    //       setTimeout(() => {
-    //         alert("All Active Files saved to system Downloads folder")
-    //       }, 5000)
-    //     })
-    //     .catch((err) => {
-    //       console.error(err);
-    //       // setError("Failed to fetch files");
-    //       setLoading(false);
-    //     });
-    // }, []);
+
 
     // ... your handleFileUpload remains the same, just call `updateData(flatData)` instead of `setData(flatData)`
     const handleFileUpload = async (e) => {
@@ -124,16 +108,7 @@ function App() {
                 }
 
                 filteredBudget.forEach((row, index) => {
-                    // const resource = row["Resource"] || "";
-                    // const [role, region] = resource.includes("-") ? resource.split("-") : [resource, ""];
 
-                    // Trim and clean individual fields
-                    // const rawResource = (row["Resource"] || "").toString().trim();
-
-
-                    // ✅ Standardize the resource name using the role mapping BEFORE splitting
-                    //const standardizedResource = roleMapping[rawResource] || roleMapping[rawResource.trim()] || rawResource;
-                    // const standardizedResource = roleMapping[rawResource] || roleMapping[rawResource.trim()] || rawResource;
                     const rawResource = (row["Resource"] || "").toString().trim();
                     const normalizedResource = rawResource.toLowerCase();
                     if (!roleMapping[normalizedResource]) {
@@ -142,10 +117,7 @@ function App() {
                     }
                     const standardizedResource = roleMapping[normalizedResource];
 
-
-
-
-                    // ✅ Now split standardized resource into role + region
+                    //  Now split standardized resource into role + region
                     const [rawRole, rawRegion] = standardizedResource.includes("-")
                         ? standardizedResource.split("-")
                         : [standardizedResource, ""];
@@ -315,15 +287,6 @@ function App() {
     };
 
 
-    // const exportInvalidRowsToCSV = (rows, fileName = "unmatched_rows.csv") => {
-    //   if (!rows || rows.length === 0) return;
-
-    //   const worksheet = XLSX.utils.json_to_sheet(rows);
-    //   const workbook = XLSX.utils.book_new();
-    //   XLSX.utils.book_append_sheet(workbook, worksheet, "Unmatched Rows");
-
-    //   XLSX.writeFile(workbook, fileName);
-    // };
 
 
     const handleStudyUpload = async (e) => {
@@ -366,35 +329,7 @@ function App() {
         reader.readAsArrayBuffer(file);
     };
 
-    // const handleRoleMappingUpload = async (e) => {
-    //   const file = e.target.files[0];
-    //   if (!file) return;
 
-    //   const reader = new FileReader();
-
-    //   reader.onload = (event) => {
-    //     const data = new Uint8Array(event.target.result);
-    //     const workbook = XLSX.read(data, { type: 'array' });
-    //     const sheetName = workbook.SheetNames[0];
-    //     const worksheet = workbook.Sheets[sheetName];
-    //     const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-    //     // Convert to mapping object
-    //     const mapping = {};
-    //     jsonData.forEach(row => {
-    //       const original = (row["Role"] || "").trim();
-    //       const correct = (row["Correct Role"] || "").trim();
-    //       if (original && correct) {
-    //         mapping[original] = correct;
-    //       }
-    //     });
-
-    //     console.log("✅ Role Mapping Loaded:", mapping);
-    //     setRoleMapping(mapping);
-    //   };
-
-    //   reader.readAsArrayBuffer(file);
-    // };
 
     const handleRoleMappingUpload = async (e) => {
         const file = e.target.files[0];
@@ -647,7 +582,7 @@ function App() {
         reader.readAsArrayBuffer(file);
     };
 
-    // 🔹 Step 2 Helper: Calculate revisedDemand and updateData
+    //  Step 2 Helper: Calculate revisedDemand and updateData
 
     function calculateRevisedDemand(rows) {
         const cleanNumber = val => {
@@ -676,7 +611,7 @@ function App() {
             totalSiteMapKeys[key] += site.toString(); // Track unique keys
         });
 
-        // 🔹 Step 2: Use group totalSite to calculate SiteHrs per row
+        //  Step 2: Use group totalSite to calculate SiteHrs per row
         const updatedRows = rows.map(row => {
             const studyId = row.oraStudyId?.trim();
             const service = row.service?.trim();
@@ -701,7 +636,7 @@ function App() {
             };
         });
 
-        console.log("✅ Final Rows with TotalSite & SiteHrs:", updatedRows);
+        console.log("Final Rows with TotalSite & SiteHrs:", updatedRows);
         updateData(updatedRows);
     }
 
@@ -743,7 +678,7 @@ function App() {
                 return cleanedEntry;
             });
 
-            // 🧪 Debug: Log the column names
+            //  Debug: Log the column names
             console.log("📋 Milestone Columns:", Object.keys(milestoneData[0]));
 
             // Create a lookup map for milestone data by Study Number
@@ -757,13 +692,13 @@ function App() {
             const [filteredOutRows, remainingData] = addMetaData(data, milestoneMap)
 
 
-            // ✅ Update the main state and excluded list
+            //  Update the main state and excluded list
             updateData(remainingData);              // Rows with complete dates
             setInvalidPhaseRows(filteredOutRows);   // Rows missing plannedStart or plannedEnd
             addCraData(remainingData); // Add to CRA data 
-            console.log("✅ Final cleaned milestone data:", remainingData);
+            console.log("Final cleaned milestone data:", remainingData);
         } catch (err) {
-            console.error("❌ Error reading schedule milestone file:", err);
+            console.error(" Error reading schedule milestone file:", err);
         }
     };
 
@@ -803,14 +738,7 @@ function App() {
             }
 
         });
-        // expandedRows.map(({ SiteHrs, ...rest }) => ({CountryHrs: SiteHrs, ...rest }));
-        //   const transformed = expandedRows.map(({ SiteHrs, site, ...rest }) => ({
-        //     CountryHrs: parseFloat(SiteHrs) / parseInt(site),
-        //     site,
-        //     ...rest
-        //   }));
 
-        // console.log("📊 Expanded CRA Data:", transformed)
         console.log("🔄 Expanded CRA Data:", expandedRows);
         setCraData(expandedRows);
     };
@@ -835,7 +763,7 @@ function App() {
                 noOfCountries: match?.["Country"]?.split(',').length || 0,
                 nameOfCountries: match?.["Country"] || "",
                 Probability: match?.["Probability"] || "",
-                
+
                 ["In Veeva?"]: match ? "Yes" : "No",  // ✅ New field
             };
         });
@@ -846,7 +774,7 @@ function App() {
         withMeta.forEach(row => {
             let comment = "";
 
-            // ✅ New condition: if study not in Veeva
+            //  New condition: if study not in Veeva
             if (row["In Veeva?"] === "No") {
                 comment = "Study not found in Veeva";
             } else {
@@ -1135,64 +1063,207 @@ function App() {
 
             alert(`Timesheet processed! Downloaded ${updatedTimesheet.length} rows with Phase column.`);
         } catch (err) {
-            console.error("❌ Error processing timesheet file:", err);
+            console.error(" Error processing timesheet file:", err);
             alert("Error processing timesheet file. Check console for details.");
         }
     };
 
+    const triggerActiveFiles = async () => {
+        try {
+            await fetch("http://localhost:3003/api/fetch-files", {
+                method: "GET" // or GET — use what your API uses
+            });
+            alert("Active files download started on server");
+        } catch (e) {
+            console.error(e);
+            alert("Error triggering Active files API");
+        }
+    };
+
+    const triggerPipelineFiles = async () => {
+        try {
+            await fetch("http://localhost:3003/api/fetch-pipeline-files", {
+                method: "GET" // or GET — use what your API uses
+            });
+            alert("Pipeline files download started on server");
+        } catch (e) {
+            console.error(e);
+            alert("Error triggering Pipeline files API");
+        }
+    };
+
+    const applyLTFUStartFromConductEnd = () => {
+        if (!data || data.length === 0) {
+            alert("No data available");
+            return;
+        }
+
+        const grouped = {};
+
+        // Group rows by Study
+        data.forEach(row => {
+            const id = row.oraStudyId;
+            if (!grouped[id]) grouped[id] = [];
+            grouped[id].push(row);
+        });
+
+        const updatedRows = [];
+
+        Object.values(grouped).forEach(rows => {
+            // Find Conduct row
+            const conductRow = rows.find(r => r.phase?.toLowerCase() === "conduct");
+
+            rows.forEach(row => {
+                if (row.phase?.toLowerCase() === "ltfu" && conductRow?.plannedEnd) {
+                    updatedRows.push({
+                        ...row,
+                        plannedStart: conductRow.plannedEnd, 
+                        comments: (row.comments || "") + " | LTFU start derived from Conduct end"
+                    });
+                } else {
+                    updatedRows.push(row);
+                }
+            });
+        });
+
+        updateData(updatedRows);
+
+        alert("✅ LTFU plannedStart updated from Conduct plannedEnd");
+    };
 
     return (
-        <div className="m-4">
-            <button
-                className="btn btn-success m-2"
-                onClick={() => navigate("/employee-automation")}
-            >
-                Employee Automation
-            </button>
-            <h3>Import All Active Excel Files</h3>
-            <input type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
-            {loading && <Spinner animation="border" className="mt-3" />}
-            <div className="mt-3">
-                <label><strong>Upload Active Study File</strong></label>
-                <input type="file" accept=".xlsx,.xls, .csv" onChange={handleStudyUpload} />
-            </div>
-            <div className="mt-3">
-                <label><strong>Upload exclode StudyID file</strong></label>
-                <input type="file" accept=".xlsx,.xls, .csv" onChange={handleExclusionFileUpload} />
-            </div>
-            <div className="mt-3">
-                <label><strong>Upload roleMapping</strong></label>
-                <input type="file" accept=".xlsx,.xls, .csv" onChange={handleRoleMappingUpload} />
-            </div>
-            <div className="mt-3">
-                <label><strong>Upload Milestone File</strong></label>
-                <input type="file" accept=".xlsx,.xls,.csv" onChange={handleMilestoneUpload} />
-            </div>
-            <div className="mt-3">
-                <label><strong>Upload Study Country & Site(site)</strong></label>
-                <input type="file" accept=".csv, .xlsx,.xls" onChange={handleStudyCountry} />
+        <div className="container-fluid p-4 bg-light min-vh-100">
+
+            {/* HEADER ACTION BAR */}
+            <div className="card shadow-sm p-3 mb-4">
+                <div className="d-flex flex-wrap gap-2">
+
+                    <button className="btn btn-outline-primary" onClick={triggerActiveFiles}>
+                        Download Active Files
+                    </button>
+
+                    <button className="btn btn-outline-primary" onClick={triggerPipelineFiles}>
+                        Download Pipeline Files
+                    </button>
+
+                    <button className="btn btn-success" onClick={() => navigate("/employee-automation")}>
+                        Employee Automation
+                    </button>
+
+                    <button className="btn btn-success" onClick={() => navigate("/timesheet-automation")}>
+                        Timesheet Automation
+                    </button>
+
+                    <button className="btn btn-primary" onClick={handleOverlapData}>
+                        Overlap File
+                    </button>
+
+                </div>
             </div>
 
-            <div className="mt-3">
-                <label><strong>Upload Schedule Level Milestone Meta (study)</strong></label>
-                <input type="file" accept=".xlsx,.xls, .csv" onChange={handleScheduleLevelMilestoneUpload} />
-            </div>
-            <div className="mt-3">
-                <label><strong>LTFU dates file</strong></label>
-                <input type="file" accept=".xlsx,.xls, .csv" onChange={handleLTFUDates} />
+            {/* FILE UPLOAD SECTION */}
+            <div className="row g-3">
+
+                {/* Bulk Upload */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <h5 className="mb-3">Import Active Excel Files</h5>
+                        <input className="form-control" type="file" multiple accept=".xlsx,.xls" onChange={handleFileUpload} />
+                    </div>
+                </div>
+
+                {/* Study File */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Upload Active Study File</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleStudyUpload} />
+                    </div>
+                </div>
+
+                {/* Exclusion */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Upload Exclude StudyID File</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleExclusionFileUpload} />
+                    </div>
+                </div>
+
+                {/* Role Mapping */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Upload Role Mapping</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleRoleMappingUpload} />
+                    </div>
+                </div>
+
+                {/* Milestone */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Upload Milestone File</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleMilestoneUpload} />
+                    </div>
+                </div>
+
+                {/* Study Country */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Upload Study Country & Site</label>
+                        <input className="form-control" type="file" accept=".csv,.xlsx,.xls" onChange={handleStudyCountry} />
+                    </div>
+                </div>
+
+                {/* Schedule Milestone */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Schedule Level Milestone Meta</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleScheduleLevelMilestoneUpload} />
+                    </div>
+                </div>
+
+                {/* LTFU */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">LTFU Dates File</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleLTFUDates} />
+                    </div>
+                </div>
+
+                {/* Timesheet */}
+                <div className="col-md-6">
+                    <div className="card shadow-sm p-3">
+                        <label className="fw-bold">Upload Timesheet File</label>
+                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleTimeSheet} />
+                    </div>
+                </div>
+                <button className="btn btn-warning" onClick={applyLTFUStartFromConductEnd}>
+                    Fix LTFU Start Date
+                </button>
+
             </div>
 
-            <div className="mt-3">
-                <label><strong>Upload Timesheet File</strong></label>
-                <input type="file" accept=".xlsx,.xls,.csv" onChange={handleTimeSheet} />
+            {/* LOADING */}
+            {loading && (
+                <div className="text-center mt-4">
+                    <Spinner animation="border" />
+                </div>
+            )}
+
+            {/* DATA */}
+            <div className="mt-4">
+                <Categories
+                    craData={cradata}
+                    errorFile={invalidPhaseRows}
+                    currentData={data}
+                    loading={loading}
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
+                />
+
+                {!loading && data.length === 0 && (
+                    <p className="text-muted mt-3">No data loaded yet.</p>
+                )}
             </div>
 
-            <button onClick={handleOverlapData} className="btn btn-primary m-2">
-                Overlap File
-            </button>
-
-            <Categories craData={cradata} errorFile={invalidPhaseRows} currentData={data} loading={loading} currentPage={currentPage} setCurrentPage={setCurrentPage} />
-            {!loading && data.length === 0 && <p className="mt-3">No data loaded yet.</p>}
         </div>
     );
 }
