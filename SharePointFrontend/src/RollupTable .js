@@ -127,7 +127,7 @@ const RollupTable = ({ data, exportToCSV, activeTab }) => {
     "Therapeutic Area": item.Department,
     Sponsor: item.Sponsor,
     "Current Project Status": item.currentProjectStatus,
-    "_Status": item.Status,
+    "Status": item.Status,
     Indication: item.Indication,
     "Enrollment Method": item.enrollmentMethod,
     "Study Nickname": item.studyNumber,

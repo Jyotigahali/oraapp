@@ -1092,7 +1092,7 @@ function App() {
         }
     };
 
-    const applyLTFUStartFromConductEnd = () => {
+    const applyConductEndFromLTFUStart = () => {
         if (!data || data.length === 0) {
             alert("No data available");
             return;
@@ -1110,15 +1110,14 @@ function App() {
         const updatedRows = [];
 
         Object.values(grouped).forEach(rows => {
-            // Find Conduct row
-            const conductRow = rows.find(r => r.phase?.toLowerCase() === "conduct");
+            const ltfuRow = rows.find(r => r.phase?.toLowerCase() === "ltfu");
 
             rows.forEach(row => {
-                if (row.phase?.toLowerCase() === "ltfu" && conductRow?.plannedEnd) {
+                if (row.phase?.toLowerCase() === "conduct" && ltfuRow?.plannedStart) {
                     updatedRows.push({
                         ...row,
-                        plannedStart: conductRow.plannedEnd, 
-                        comments: (row.comments || "") + " | LTFU start derived from Conduct end"
+                        plannedEnd: ltfuRow.plannedStart,
+                        comments: (row.comments || "") + " | Conduct end derived from LTFU start"
                     });
                 } else {
                     updatedRows.push(row);
@@ -1126,9 +1125,31 @@ function App() {
             });
         });
 
-        updateData(updatedRows);
+        // ✅ NEW VALIDATION BLOCK (same as addMetaData)
+        const errorRows = [];
+        const validRows = [];
 
-        alert("✅ LTFU plannedStart updated from Conduct plannedEnd");
+        updatedRows.forEach(row => {
+            let comment = row.comments || "";
+
+            const start = row.plannedStart ? new Date(row.plannedStart) : null;
+            const end = row.plannedEnd ? new Date(row.plannedEnd) : null;
+
+            if (start && end && end < start) {
+                comment = "Planned End Date is before Planned Start Date";
+                errorRows.push({ ...row, comments: comment });
+            } else {
+                validRows.push(row);
+            }
+        });
+
+        // ✅ Update main data
+        updateData(validRows);
+
+        // ✅ Send to error file list
+        setInvalidPhaseRows(prev => [...prev, ...errorRows]);
+
+        alert("✅ Conduct plannedEnd updated and date validation applied");
     };
 
     return (
@@ -1235,8 +1256,8 @@ function App() {
                         <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleTimeSheet} />
                     </div>
                 </div>
-                <button className="btn btn-warning" onClick={applyLTFUStartFromConductEnd}>
-                    Fix LTFU Start Date
+                <button className="btn btn-warning" onClick={applyConductEndFromLTFUStart}>
+                    Fix Conduct End Date
                 </button>
 
             </div>
