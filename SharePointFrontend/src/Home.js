@@ -172,17 +172,25 @@ function App() {
                 cellDates: true,
             });
 
-            // Excel date parser
+            // ============================================================
+            // EXCEL DATE PARSER
+            // ============================================================
             const parseExcelDate = (value) => {
                 if (typeof value === "number") {
                     const date = XLSX.SSF.parse_date_code(value);
                     if (!date) return "";
-                    const iso = new Date(Date.UTC(date.y, date.m - 1, date.d)).toISOString();
+
+                    const iso = new Date(
+                        Date.UTC(date.y, date.m - 1, date.d)
+                    ).toISOString();
+
                     return iso.split("T")[0];
                 }
+
                 if (value instanceof Date) {
                     return value.toISOString().split("T")[0];
                 }
+
                 return "";
             };
 
@@ -190,38 +198,408 @@ function App() {
                 const date = parseExcelDate(val);
                 return (!date || date.startsWith("1900")) ? "" : date;
             };
+            // ============================================================
+            // ROUND DATE TO MONTH
+            // plannedStart = First day of the month
+            // plannedEnd   = Last day of the month
+            // ============================================================
 
-            // Function to get milestone date for normal phases
-            const getDateByPriority = (milestone) => {
+            const roundToMonthStart = (dateString) => {
+                if (!dateString) return "";
+
+                const [year, month] = dateString.split("-").map(Number);
+
+                if (!year || !month) return "";
+
+                return `${year}-${String(month).padStart(2, "0")}-01`;
+            };
+
+            const roundToMonthEnd = (dateString) => {
+                if (!dateString) return "";
+
+                const [year, month] = dateString.split("-").map(Number);
+
+                if (!year || !month) return "";
+
+                // Day 0 of next month gives the last day of current month
+                const lastDay = new Date(year, month, 0).getDate();
+
+                return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+            };
+           
+
+            // ============================================================
+            // START DATE LOGIC FOR STARTUP AND ALL
+            //
+            // 1. Protocol Finalization - Actual Start
+            // 2. Protocol Finalization - Planned Start
+            // 3. Protocol Approved - Actual Start
+            // 4. Protocol Approved - Planned Start
+            // ============================================================
+            const getStartupAllStartDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                // --------------------------------------------------------
+                // Protocol Finalization
+                // --------------------------------------------------------
+                const protocolFinalization = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Protocol Finalization"
+                );
+
+                if (protocolFinalization) {
+
+                    // 1. Actual Start
+                    const actualStart = cleanDate(
+                        protocolFinalization.data["Actual Start Date"]
+                    );
+
+                    if (actualStart) {
+                        return actualStart;
+                    }
+
+                    // 2. Planned Start
+                    const plannedStart = cleanDate(
+                        protocolFinalization.data["Planned Start Date"]
+                    );
+
+                    if (plannedStart) {
+                        return plannedStart;
+                    }
+                }
+
+                // --------------------------------------------------------
+                // Protocol Approved
+                // --------------------------------------------------------
+                const protocolApproved = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Protocol Approved"
+                );
+
+                if (protocolApproved) {
+
+                    // 3. Actual Start
+                    const actualStart = cleanDate(
+                        protocolApproved.data["Actual Start Date"]
+                    );
+
+                    if (actualStart) {
+                        return actualStart;
+                    }
+
+                    // 4. Planned Start
+                    const plannedStart = cleanDate(
+                        protocolApproved.data["Planned Start Date"]
+                    );
+
+                    if (plannedStart) {
+                        return plannedStart;
+                    }
+                }
+
+                return "";
+            };
+
+
+            // ============================================================
+            // STARTUP END DATE
+            //
+            // First Subject In:
+            // 1. Actual Start
+            // 2. Planned Start
+            // ============================================================
+            const getStartupEndDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "First Subject In"
+                );
+
+                if (!milestone) return "";
+
                 return (
-                    cleanDate(milestone["Actual Start Date"]) ||
-                    cleanDate(milestone["Actual Finish Date"]) ||
-                    cleanDate(milestone["Planned Start Date"]) ||
-                    cleanDate(milestone["Planned Finish Date"])
+                    cleanDate(milestone.data["Actual Start Date"]) ||
+                    cleanDate(milestone.data["Planned Start Date"]) ||
+                    ""
                 );
             };
 
-            // Function to get date for Startup / All phases
-            const getStartupAllDate = (studyMilestones, oraStudyId) => {
-                const tryMilestones = ["Protocol Approved", "Protocol Finalization"];
 
-                for (const type of tryMilestones) {
-                    const milestone = studyMilestones.find(
-                        (m) => m.study === oraStudyId && m.type === type
-                    );
-                    if (!milestone) continue;
+            // ============================================================
+            // ALL END DATE
+            //
+            // Financially Closed:
+            // 1. Actual Finish
+            // 2. Planned Finish
+            // ============================================================
+            const getAllEndDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
 
-                    const actualStart = cleanDate(milestone.data["Actual Start Date"]);
-                    const actualFinish = cleanDate(milestone.data["Actual Finish Date"]);
+                const financiallyClosed = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Financially Closed"
+                );
 
-                    if (actualStart) return actualStart;
-                    if (actualFinish) return actualFinish;
-                    // If both blank/1900 → continue to next milestone type
+                if (!financiallyClosed) return "";
+
+                const actualFinish = cleanDate(
+                    financiallyClosed.data["Actual Finish Date"]
+                );
+
+                if (actualFinish) {
+                    return actualFinish;
                 }
 
-                return ""; // nothing found
+                const plannedFinish = cleanDate(
+                    financiallyClosed.data["Planned Finish Date"]
+                );
+
+                if (plannedFinish) {
+                    return plannedFinish;
+                }
+
+                return "";
             };
-            // Filter and structure milestones
+
+
+            // ============================================================
+            // CONDUCT START DATE
+            //
+            // First Subject In:
+            // 1. Actual Start
+            // 2. Planned Start
+            // ============================================================
+            const getConductStartDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "First Subject In"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Start Date"]) ||
+                    cleanDate(milestone.data["Planned Start Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // CONDUCT END DATE
+            //
+            // Last Subject Out:
+            // 1. Actual Finish
+            // 2. Planned Finish
+            // ============================================================
+            const getConductEndDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Last Subject Out"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Finish Date"]) ||
+                    cleanDate(milestone.data["Planned Finish Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // LTFU START DATE
+            //
+            // Last Subject In:
+            // 1. Actual Start
+            // 2. Planned Start
+            // ============================================================
+            const getLTFUStartDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Last Subject In"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Start Date"]) ||
+                    cleanDate(milestone.data["Planned Start Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // LTFU END DATE
+            //
+            // Last Subject Out:
+            // 1. Actual Finish
+            // 2. Planned Finish
+            // ============================================================
+            const getLTFUEndDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Last Subject Out"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Finish Date"]) ||
+                    cleanDate(milestone.data["Planned Finish Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // DBL START DATE
+            //
+            // DBL:
+            // 1. Actual Start
+            // 2. Planned Start
+            // ============================================================
+            const getDBLStartDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "DBL"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Start Date"]) ||
+                    cleanDate(milestone.data["Planned Start Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // DBL END DATE
+            //
+            // DBL:
+            // 1. Actual Finish
+            // 2. Planned Finish
+            // ============================================================
+            const getDBLEndDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "DBL"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Finish Date"]) ||
+                    cleanDate(milestone.data["Planned Finish Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // CLOSEOUT START DATE
+            //
+            // DBL:
+            // 1. Actual Finish
+            // 2. Planned Finish
+            // ============================================================
+            const getCloseoutStartDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "DBL"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Finish Date"]) ||
+                    cleanDate(milestone.data["Planned Finish Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // CLOSEOUT END DATE
+            //
+            // Financially Closed:
+            // 1. Actual Finish
+            // 2. Planned Finish
+            // ============================================================
+            const getCloseoutEndDate = (
+                studyMilestones,
+                oraStudyId
+            ) => {
+
+                const milestone = studyMilestones.find(
+                    (m) =>
+                        m.study === oraStudyId &&
+                        m.type === "Financially Closed"
+                );
+
+                if (!milestone) return "";
+
+                return (
+                    cleanDate(milestone.data["Actual Finish Date"]) ||
+                    cleanDate(milestone.data["Planned Finish Date"]) ||
+                    ""
+                );
+            };
+
+
+            // ============================================================
+            // FILTER AND STRUCTURE MILESTONES
+            // ============================================================
             const studyMilestones = json
                 .map((row) => ({
                     study: row["Ora Project Code"]?.trim(),
@@ -229,64 +607,196 @@ function App() {
                     data: row,
                 }))
                 .filter((r) => r.study && r.type);
+
+
+            // ============================================================
+            // PHASE DATE REFERENCE
+            // ============================================================
             const phaseDateReference = [
-                { phase: "Startup", startLabel: "Protocol Approved", endLabel: "First Subject In" },
-                { phase: "Conduct", startLabel: "First Subject In", endLabel: "Last Subject Out" },
-                { phase: "LTFU", startLabel: "Last Subject In", endLabel: "Last Subject Out" },
-                { phase: "DBL", startLabel: "Last Subject Out", endLabel: "DBL" },
-                { phase: "Closeout", startLabel: "DBL", endLabel: "Financially Closed" },
-                { phase: "All", startLabel: "Protocol Approved", endLabel: "Financially Closed" },
+                {
+                    phase: "Startup",
+                    startLabel: "Protocol Approved",
+                    endLabel: "First Subject In"
+                },
+                {
+                    phase: "Conduct",
+                    startLabel: "First Subject In",
+                    endLabel: "Last Subject Out"
+                },
+                {
+                    phase: "LTFU",
+                    startLabel: "Last Subject In",
+                    endLabel: "Last Subject Out"
+                },
+                {
+                    phase: "DBL",
+                    startLabel: "DBL",
+                    endLabel: "DBL"
+                },
+                {
+                    phase: "Closeout",
+                    startLabel: "DBL",
+                    endLabel: "Financially Closed"
+                },
+                {
+                    phase: "All",
+                    startLabel: "Protocol Approved",
+                    endLabel: "Financially Closed"
+                },
             ];
 
+
+            // ============================================================
+            // PROCESS DATA
+            // ============================================================
             const newDataWithDates = data.map((row) => {
+
                 const oraStudyId = row.oraStudyId?.trim();
                 const phase = row.phase?.trim();
 
                 const phaseRef = phaseDateReference.find(
-                    (ref) => ref.phase.toLowerCase() === phase?.toLowerCase()
+                    (ref) =>
+                        ref.phase.toLowerCase() === phase?.toLowerCase()
                 );
 
                 if (!phaseRef) {
-                    return { ...row, plannedStart: "", plannedEnd: "", comments: "Invalid phase" };
+                    return {
+                        ...row,
+                        plannedStart: "",
+                        plannedEnd: "",
+                        comments: "Invalid phase"
+                    };
                 }
 
-                const { startLabel, endLabel } = phaseRef;
-
-                // Determine plannedStart based on phase
+                // ========================================================
+                // DETERMINE START DATE
+                // ========================================================
                 let plannedStart = "";
+
                 if (phase === "Startup" || phase === "All") {
-                    plannedStart = getStartupAllDate(studyMilestones, oraStudyId);
-                } else {
-                    const startMilestone = studyMilestones.find(
-                        (m) => m.study === oraStudyId && m.type === startLabel
+
+                    // Startup + All
+                    plannedStart = getStartupAllStartDate(
+                        studyMilestones,
+                        oraStudyId
                     );
-                    plannedStart = startMilestone ? getDateByPriority(startMilestone.data) : "";
+
+                } else if (phase === "Conduct") {
+
+                    // Conduct
+                    plannedStart = getConductStartDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "LTFU") {
+
+                    // LTFU
+                    plannedStart = getLTFUStartDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "DBL") {
+
+                    // DBL
+                    plannedStart = getDBLStartDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "Closeout") {
+
+                    // Closeout
+                    plannedStart = getCloseoutStartDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
                 }
 
-                // Determine plannedEnd (normal priority for all phases)
-                const endMilestone = studyMilestones.find(
-                    (m) => m.study === oraStudyId && m.type === endLabel
-                );
-                const plannedEnd = endMilestone ? getDateByPriority(endMilestone.data) : "";
 
-                const hasError = !plannedStart || !plannedEnd;
+                // ========================================================
+                // DETERMINE END DATE
+                // ========================================================
+                let plannedEnd = "";
+
+                if (phase === "Startup") {
+
+                    // Startup End
+                    plannedEnd = getStartupEndDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "All") {
+
+                    // All End
+                    plannedEnd = getAllEndDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "Conduct") {
+
+                    // Conduct
+                    plannedEnd = getConductEndDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "LTFU") {
+
+                    // LTFU
+                    plannedEnd = getLTFUEndDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "DBL") {
+
+                    // DBL
+                    plannedEnd = getDBLEndDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+
+                } else if (phase === "Closeout") {
+
+                    // Closeout
+                    plannedEnd = getCloseoutEndDate(
+                        studyMilestones,
+                        oraStudyId
+                    );
+                }
+
+
+                // ========================================================
+                // ERROR CHECK
+                // ========================================================
+                const roundedPlannedStart = roundToMonthStart(plannedStart);
+                const roundedPlannedEnd = roundToMonthEnd(plannedEnd);
+                const hasError = !roundedPlannedStart || !roundedPlannedEnd;
 
                 return {
                     ...row,
-                    plannedStart,
-                    plannedEnd,
-                    comments: hasError ? "Missing milestone dates" : "",
+                    plannedStart: roundedPlannedStart,
+                    plannedEnd: roundedPlannedEnd,
+                    comments: hasError
+                        ? "Missing milestone dates"
+                        : "",
                 };
             });
 
+
+            // ============================================================
+            // UPDATE DATA
+            // ============================================================
             updateData(newDataWithDates);
 
         } catch (err) {
             console.error("Error parsing milestone file:", err);
         }
     };
-
-
 
 
     const handleStudyUpload = async (e) => {
@@ -362,283 +872,283 @@ function App() {
     };
 
 
-    const handleStudyCountry = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // const handleStudyCountry = async (e) => {
+    //     const file = e.target.files[0];
+    //     if (!file) return;
 
-        const reader = new FileReader();
+    //     const reader = new FileReader();
 
-        reader.onload = (e) => {
-            const dataBuffer = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(dataBuffer, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+    //     reader.onload = (e) => {
+    //         const dataBuffer = new Uint8Array(e.target.result);
+    //         const workbook = XLSX.read(dataBuffer, { type: 'array' });
+    //         const sheetName = workbook.SheetNames[0];
+    //         const worksheet = workbook.Sheets[sheetName];
+    //         const countryTable = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-            setStudyCountry(countryTable);
+    //         setStudyCountry(countryTable);
 
-            const regionMap = {
-                NA: [
-                    "Canada",
-                    "United States",
-                    "US non-OraNet",
-                    "US OraNet",
-                    "Andover Eye"
-                ],
-                MENA: [
-                    "Algeria",
-                    "Bahrain",
-                    "Egypt",
-                    "Iran",
-                    "Iraq",
-                    "Israel",
-                    "Jordan",
-                    "Kuwait",
-                    "Lebanon",
-                    "Libya",
-                    "Morocco",
-                    "Oman",
-                    "Palestine",
-                    "Qatar",
-                    "Saudi Arabia",
-                    "Syria",
-                    "Tunisia",
-                    "United Arab Emirates",
-                    "Yemen"
-                ],
-                APAC: [
-                    "Afghanistan",
-                    "Australia",
-                    "Bangladesh",
-                    "Bhutan",
-                    "Brunei Darussalam",
-                    "Cambodia",
-                    "China",
-                    "Cook Islands",
-                    "Democratic People's Republic of Korea",
-                    "Fiji",
-                    "Hong Kong",
-                    "India",
-                    "Indonesia",
-                    "Japan",
-                    "Kiribati",
-                    "Lao People's Democratic Republic",
-                    "Macao",
-                    "Malaysia",
-                    "Maldives",
-                    "Marshall Islands",
-                    "New Zealand",
-                    "South Korea",
-                    "Taiwan"
-                ],
-                LATAM: [
-                    "Argentina",
-                    "Belize",
-                    "Bolivia",
-                    "Brazil",
-                    "Chile",
-                    "Colombia",
-                    "Costa Rica",
-                    "Ecuador",
-                    "El Salvador",
-                    "Guatemala",
-                    "Guyana",
-                    "Honduras",
-                    "Mexico",
-                    "Nicaragua",
-                    "Panama",
-                    "Paraguay",
-                    "Peru",
-                    "Suriname",
-                    "Uruguay",
-                    "Venezuela"
-                ],
-                EU: [
-                    "Austria",
-                    "Belgium",
-                    "Bulgaria",
-                    "Croatia",
-                    "Czech Republic",
-                    "Denmark",
-                    "Estonia",
-                    "Finland",
-                    "France",
-                    "Germany",
-                    "Greece",
-                    "Hungary",
-                    "Ireland",
-                    "Italy",
-                    "Latvia",
-                    "Lithuania",
-                    "Luxembourg",
-                    "Malta",
-                    "Netherlands",
-                    "Norway",
-                    "Poland",
-                    "Portugal",
-                    "Republic of Cyprus",
-                    "Romania",
-                    "Slovakia",
-                    "Slovenia",
-                    "Spain",
-                    "Sweden",
-                    "Switzerland",
-                    "United Kingdom"
-                ],
-                CN: ["China*"],
-                JP: ["Japan*"]
-            };
+    //         const regionMap = {
+    //             NA: [
+    //                 "Canada",
+    //                 "United States",
+    //                 "US non-OraNet",
+    //                 "US OraNet",
+    //                 "Andover Eye"
+    //             ],
+    //             MENA: [
+    //                 "Algeria",
+    //                 "Bahrain",
+    //                 "Egypt",
+    //                 "Iran",
+    //                 "Iraq",
+    //                 "Israel",
+    //                 "Jordan",
+    //                 "Kuwait",
+    //                 "Lebanon",
+    //                 "Libya",
+    //                 "Morocco",
+    //                 "Oman",
+    //                 "Palestine",
+    //                 "Qatar",
+    //                 "Saudi Arabia",
+    //                 "Syria",
+    //                 "Tunisia",
+    //                 "United Arab Emirates",
+    //                 "Yemen"
+    //             ],
+    //             APAC: [
+    //                 "Afghanistan",
+    //                 "Australia",
+    //                 "Bangladesh",
+    //                 "Bhutan",
+    //                 "Brunei Darussalam",
+    //                 "Cambodia",
+    //                 "China",
+    //                 "Cook Islands",
+    //                 "Democratic People's Republic of Korea",
+    //                 "Fiji",
+    //                 "Hong Kong",
+    //                 "India",
+    //                 "Indonesia",
+    //                 "Japan",
+    //                 "Kiribati",
+    //                 "Lao People's Democratic Republic",
+    //                 "Macao",
+    //                 "Malaysia",
+    //                 "Maldives",
+    //                 "Marshall Islands",
+    //                 "New Zealand",
+    //                 "South Korea",
+    //                 "Taiwan"
+    //             ],
+    //             LATAM: [
+    //                 "Argentina",
+    //                 "Belize",
+    //                 "Bolivia",
+    //                 "Brazil",
+    //                 "Chile",
+    //                 "Colombia",
+    //                 "Costa Rica",
+    //                 "Ecuador",
+    //                 "El Salvador",
+    //                 "Guatemala",
+    //                 "Guyana",
+    //                 "Honduras",
+    //                 "Mexico",
+    //                 "Nicaragua",
+    //                 "Panama",
+    //                 "Paraguay",
+    //                 "Peru",
+    //                 "Suriname",
+    //                 "Uruguay",
+    //                 "Venezuela"
+    //             ],
+    //             EU: [
+    //                 "Austria",
+    //                 "Belgium",
+    //                 "Bulgaria",
+    //                 "Croatia",
+    //                 "Czech Republic",
+    //                 "Denmark",
+    //                 "Estonia",
+    //                 "Finland",
+    //                 "France",
+    //                 "Germany",
+    //                 "Greece",
+    //                 "Hungary",
+    //                 "Ireland",
+    //                 "Italy",
+    //                 "Latvia",
+    //                 "Lithuania",
+    //                 "Luxembourg",
+    //                 "Malta",
+    //                 "Netherlands",
+    //                 "Norway",
+    //                 "Poland",
+    //                 "Portugal",
+    //                 "Republic of Cyprus",
+    //                 "Romania",
+    //                 "Slovakia",
+    //                 "Slovenia",
+    //                 "Spain",
+    //                 "Sweden",
+    //                 "Switzerland",
+    //                 "United Kingdom"
+    //             ],
+    //             CN: ["China*"],
+    //             JP: ["Japan*"]
+    //         };
 
 
-            const dataWithExpandedCountryAndSite = [];
-            console.log("🔄 Before country & site added:", data);
+    //         const dataWithExpandedCountryAndSite = [];
+    //         console.log("🔄 Before country & site added:", data);
 
-            data.forEach((row, index) => {
-                const { region = "", oraStudyId = "" } = row;
-                const regionCode = region.trim();
-                const regionCountries = regionMap[regionCode];
+    //         data.forEach((row, index) => {
+    //             const { region = "", oraStudyId = "" } = row;
+    //             const regionCode = region.trim();
+    //             const regionCountries = regionMap[regionCode];
 
-                if (!regionCountries) {
-                    // console.log(`Row ${index} → Skipped: Unknown or missing region code (${regionCode})`);
+    //             if (!regionCountries) {
+    //                 // console.log(`Row ${index} → Skipped: Unknown or missing region code (${regionCode})`);
 
-                    // Still include the row with empty country/site info
-                    dataWithExpandedCountryAndSite.push({
-                        ...row,
-                        country: "",
-                        site: "",
-                        sites: "",
-                    });
-                    return;
-                }
+    //                 // Still include the row with empty country/site info
+    //                 dataWithExpandedCountryAndSite.push({
+    //                     ...row,
+    //                     country: "",
+    //                     site: "",
+    //                     sites: "",
+    //                 });
+    //                 return;
+    //             }
 
-                const matchingEntries = countryTable.filter(entry =>
-                    (entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() ||
-                        entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim()) &&
-                    entry["Site Status"]?.toLowerCase() === "active" &&
-                    regionCountries.includes(entry["Study Country"])
-                );
+    //             const matchingEntries = countryTable.filter(entry =>
+    //                 (entry["Study Number"]?.toString().trim() === oraStudyId?.toString().trim() ||
+    //                     entry["Ora Project Code"]?.toString().trim() === oraStudyId?.toString().trim()) &&
+    //                 entry["Site Status"]?.toLowerCase() === "active" &&
+    //                 regionCountries.includes(entry["Study Country"])
+    //             );
 
-                if (matchingEntries.length === 0) {
-                    console.log(`Row ${index} → No matching active country entries for oraStudyId "${oraStudyId}" in region ${regionCode}`);
-                    dataWithExpandedCountryAndSite.push({
-                        ...row,
-                        country: "",
-                        site: "",
-                        sites: "",
-                    });
-                    return;
-                }
+    //             if (matchingEntries.length === 0) {
+    //                 console.log(`Row ${index} → No matching active country entries for oraStudyId "${oraStudyId}" in region ${regionCode}`);
+    //                 dataWithExpandedCountryAndSite.push({
+    //                     ...row,
+    //                     country: "",
+    //                     site: "",
+    //                     sites: "",
+    //                 });
+    //                 return;
+    //             }
 
-                // Group matching entries by country
-                const countrySiteMap = {};
-                const countrySitesMap = {};
+    //             // Group matching entries by country
+    //             const countrySiteMap = {};
+    //             const countrySitesMap = {};
 
-                matchingEntries.forEach(entry => {
-                    const country = entry["Study Country"]?.trim();
-                    const siteNumber = entry["Study Site Number"]?.toString().trim();
+    //             matchingEntries.forEach(entry => {
+    //                 const country = entry["Study Country"]?.trim();
+    //                 const siteNumber = entry["Study Site Number"]?.toString().trim();
 
-                    if (country) {
-                        countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
+    //                 if (country) {
+    //                     countrySiteMap[country] = (countrySiteMap[country] || 0) + 1;
 
-                        if (!countrySitesMap[country]) {
-                            countrySitesMap[country] = [];
-                        }
-                        if (siteNumber) {
-                            countrySitesMap[country].push(siteNumber);
-                        }
-                    }
-                });
+    //                     if (!countrySitesMap[country]) {
+    //                         countrySitesMap[country] = [];
+    //                     }
+    //                     if (siteNumber) {
+    //                         countrySitesMap[country].push(siteNumber);
+    //                     }
+    //                 }
+    //             });
 
-                const countryList = Object.keys(countrySiteMap);
-                const siteCountList = countryList.map(country => countrySiteMap[country]);
+    //             const countryList = Object.keys(countrySiteMap);
+    //             const siteCountList = countryList.map(country => countrySiteMap[country]);
 
-                if (countryList.length === 0) {
-                    // Should not happen, but fallback safety
-                    dataWithExpandedCountryAndSite.push({
-                        ...row,
-                        country: "",
-                        site: "",
-                        sites: "",
-                    });
-                } else {
-                    countryList.forEach((country, i) => {
-                        dataWithExpandedCountryAndSite.push({
-                            ...row,
-                            country: country,
-                            site: siteCountList[i].toString(),
-                            sites: countrySitesMap[country].join(", "),
-                        });
-                    });
-                }
-            });
+    //             if (countryList.length === 0) {
+    //                 // Should not happen, but fallback safety
+    //                 dataWithExpandedCountryAndSite.push({
+    //                     ...row,
+    //                     country: "",
+    //                     site: "",
+    //                     sites: "",
+    //                 });
+    //             } else {
+    //                 countryList.forEach((country, i) => {
+    //                     dataWithExpandedCountryAndSite.push({
+    //                         ...row,
+    //                         country: country,
+    //                         site: siteCountList[i].toString(),
+    //                         sites: countrySitesMap[country].join(", "),
+    //                     });
+    //                 });
+    //             }
+    //         });
 
-            console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
+    //         console.log("🔄 After country & site added:", dataWithExpandedCountryAndSite);
 
-            // Step 2: Calculate revisedDemand
-            calculateRevisedDemand(dataWithExpandedCountryAndSite);
+    //         // Step 2: Calculate revisedDemand
+    //         calculateRevisedDemand(dataWithExpandedCountryAndSite);
 
-        };
+    //     };
 
-        reader.readAsArrayBuffer(file);
-    };
+    //     reader.readAsArrayBuffer(file);
+    // };
 
     //  Step 2 Helper: Calculate revisedDemand and updateData
 
-    function calculateRevisedDemand(rows) {
-        const cleanNumber = val => {
-            if (val == null) return 0;
-            const str = val.toString().replace(/[^0-9.\-]/g, '').trim();
-            const num = parseFloat(str);
-            return isNaN(num) ? 0 : num;
-        };
+    // function calculateRevisedDemand(rows) {
+    //     const cleanNumber = val => {
+    //         if (val == null) return 0;
+    //         const str = val.toString().replace(/[^0-9.\-]/g, '').trim();
+    //         const num = parseFloat(str);
+    //         return isNaN(num) ? 0 : num;
+    //     };
 
-        // 🔹 Step 1: Build totalSiteMap grouped by oraStudyId + service
-        const totalSiteMap = {}; // key = oraStudyId__service => total site sum
-        const totalSiteMapKeys = {}; // To track unique keys
-        rows.forEach(row => {
-            const studyId = row.oraStudyId?.trim();
-            const service = row.service?.trim();
-            const site = cleanNumber(row.site);
+    //     // 🔹 Step 1: Build totalSiteMap grouped by oraStudyId + service
+    //     const totalSiteMap = {}; // key = oraStudyId__service => total site sum
+    //     const totalSiteMapKeys = {}; // To track unique keys
+    //     rows.forEach(row => {
+    //         const studyId = row.oraStudyId?.trim();
+    //         const service = row.service?.trim();
+    //         const site = cleanNumber(row.site);
 
-            if (!studyId || !service) return;
+    //         if (!studyId || !service) return;
 
-            const key = `${studyId}__${service}`;
-            if (!totalSiteMap[key]) {
-                totalSiteMap[key] = 0;
-            }
+    //         const key = `${studyId}__${service}`;
+    //         if (!totalSiteMap[key]) {
+    //             totalSiteMap[key] = 0;
+    //         }
 
-            totalSiteMap[key] += site;
-            totalSiteMapKeys[key] += site.toString(); // Track unique keys
-        });
+    //         totalSiteMap[key] += site;
+    //         totalSiteMapKeys[key] += site.toString(); // Track unique keys
+    //     });
 
-        //  Step 2: Use group totalSite to calculate SiteHrs per row
-        const updatedRows = rows.map(row => {
-            const studyId = row.oraStudyId?.trim();
-            const service = row.service?.trim();
-            const site = cleanNumber(row.site);
-            const totalHrs = cleanNumber(row.totalHrs);
+    //     //  Step 2: Use group totalSite to calculate SiteHrs per row
+    //     const updatedRows = rows.map(row => {
+    //         const studyId = row.oraStudyId?.trim();
+    //         const service = row.service?.trim();
+    //         const site = cleanNumber(row.site);
+    //         const totalHrs = cleanNumber(row.totalHrs);
 
-            const key = `${studyId}__${service}`;
-            const totalSite = totalSiteMap[key] || 0;
+    //         const key = `${studyId}__${service}`;
+    //         const totalSite = totalSiteMap[key] || 0;
 
-            let siteHrs = 0;
-            if (totalSite > 0 && site > 0) {
-                siteHrs = ((totalHrs / totalSite) * site).toFixed(6);
-            } else {
-                siteHrs = totalHrs;
-            }
+    //         let siteHrs = 0;
+    //         if (totalSite > 0 && site > 0) {
+    //             siteHrs = ((totalHrs / totalSite) * site).toFixed(6);
+    //         } else {
+    //             siteHrs = totalHrs;
+    //         }
 
-            return {
-                ...row,
+    //         return {
+    //             ...row,
 
-                TotalSite: totalSite,
-                SiteHrs: Number(siteHrs),
-            };
-        });
+    //             TotalSite: totalSite,
+    //             SiteHrs: Number(siteHrs),
+    //         };
+    //     });
 
-        console.log("Final Rows with TotalSite & SiteHrs:", updatedRows);
-        updateData(updatedRows);
-    }
+    //     console.log("Final Rows with TotalSite & SiteHrs:", updatedRows);
+    //     updateData(updatedRows);
+    // }
 
 
 
@@ -902,172 +1412,8 @@ function App() {
     };
 
 
-    const handleOverlapData = () => {
-        if (!data || data.length === 0) {
-            alert("No data available for overlap check");
-            return;
-        }
-
-        // Group by Study ID
-        const grouped = data.reduce((acc, row) => {
-            const id = row.oraStudyId;
-            if (!acc[id]) acc[id] = [];
-            acc[id].push(row);
-            return acc;
-        }, {});
-
-        const updatedRows = [];
-
-        Object.values(grouped).forEach(rows => {
-            // Sort by custom phase order
-            rows.sort((a, b) => {
-                return PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase);
-            });
-
-            let prevEnd = null;
-
-            rows.forEach((row, idx) => {
-                const start = row.plannedStart ? new Date(row.plannedStart) : null;
-                const end = row.plannedEnd ? new Date(row.plannedEnd) : null;
-
-                let overlap = ""; // leave blank unless it’s a phase transition row
-
-                // Mark only first row of each phase
-                if (
-                    idx === 0 || // first phase always gets a marker
-                    row.phase !== rows[idx - 1].phase // new phase transition
-                ) {
-                    if (prevEnd && start) {
-                        overlap = prevEnd <= start ? "False" : "True";
-                    } else {
-                        overlap = "False"; // no previous to compare
-                    }
-                }
-
-                updatedRows.push({
-                    ...row,
-                    Overlap: overlap,
-                });
-
-                if (end) prevEnd = end;
-            });
-        });
-
-
-        updateData(updatedRows);
-
-
-        const overlapFalseRows = updatedRows.filter(row => row.Overlap === "True");
-
-        if (overlapFalseRows.length === 0) {
-            alert("No overlap issues found");
-        } else {
-            const worksheet = XLSX.utils.json_to_sheet(overlapFalseRows);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Overlap Issues");
-            XLSX.writeFile(workbook, "overlap_check_false.xlsx");
-            console.log("✅ Overlap issues file exported with only 'False' rows");
-        }
-
-
-        console.log("✅ Overlap file exported in simplified format");
-    };
-
-    const handleTimeSheet = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        console.log("📥 Timesheet file uploaded:", file.name);
-
-        const referenceData = data;
-
-        if (!referenceData || referenceData.length === 0) {
-            console.warn("⚠️ Reference data is empty. Phases will be empty.");
-        }
-
-        try {
-            const buffer = await file.arrayBuffer();
-            const workbook = XLSX.read(buffer, { type: "buffer" });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-            const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-            if (!rawData || rawData.length === 0) {
-                alert("No data found in timesheet file.");
-                return;
-            }
-
-            const headers = rawData[0].map(h => h.toString().trim());
-            const timesheetData = rawData.slice(1).map(row => {
-                const obj = {};
-                headers.forEach((h, i) => obj[h] = row[i]);
-                return obj;
-            });
-
-            const parseDate = (dateValue) => {
-                if (!dateValue) return null;
-                if (typeof dateValue === "number") {
-                    const parsed = XLSX.SSF.parse_date_code(dateValue);
-                    return parsed ? new Date(parsed.y, parsed.m - 1, parsed.d) : null;
-                }
-                return new Date(dateValue);
-            };
-
-            const updatedTimesheet = timesheetData.map(row => {
-                const projectNumber = (row["Project Number"] || "").toString().trim();
-                const dateStr = row["Date"];
-                const tsDate = parseDate(dateStr);
-
-                let phase = "";
-
-                if (projectNumber && tsDate) {
-                    // Match only by Project Number and exclude empty or "All" phases
-                    const matchedRows = referenceData.filter(d =>
-                        d.oraStudyId?.toString().trim().toLowerCase() === projectNumber.toLowerCase() &&
-                        d.phase && d.phase.trim() !== "" && d.phase.trim().toLowerCase() !== "all"
-                    );
-
-                    // Stop at the first valid match
-                    for (let match of matchedRows) {
-                        const plannedStart = parseDate(match.plannedStart);
-                        const plannedEnd = parseDate(match.plannedEnd);
-
-                        if (plannedStart && plannedEnd) {
-                            // Compare month and year only
-                            const tsMonth = tsDate.getMonth();
-                            const tsYear = tsDate.getFullYear();
-                            const startMonth = plannedStart.getMonth();
-                            const startYear = plannedStart.getFullYear();
-                            const endMonth = plannedEnd.getMonth();
-                            const endYear = plannedEnd.getFullYear();
-
-                            const afterStart = tsYear > startYear || (tsYear === startYear && tsMonth >= startMonth);
-                            const beforeEnd = tsYear < endYear || (tsYear === endYear && tsMonth <= endMonth);
-
-                            if (afterStart && beforeEnd) {
-                                phase = match.phase;
-                                break; // Use the first valid match and stop
-                            }
-                        }
-                    }
-                }
-
-                return {
-                    ...row,
-                    Phase: phase
-                };
-            });
-
-            const worksheet = XLSX.utils.json_to_sheet(updatedTimesheet);
-            const newWorkbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(newWorkbook, worksheet, "Updated Timesheet");
-            XLSX.writeFile(newWorkbook, "updated_timesheet_with_phase.xlsx");
-
-            alert(`Timesheet processed! Downloaded ${updatedTimesheet.length} rows with Phase column.`);
-        } catch (err) {
-            console.error(" Error processing timesheet file:", err);
-            alert("Error processing timesheet file. Check console for details.");
-        }
-    };
-
+  
+   
     const triggerActiveFiles = async () => {
         try {
             await fetch("http://localhost:3003/api/fetch-files", {
@@ -1175,9 +1521,7 @@ function App() {
                         Timesheet Automation
                     </button>
 
-                    <button className="btn btn-primary" onClick={handleOverlapData}>
-                        Overlap File
-                    </button>
+                  
 
                 </div>
             </div>
@@ -1225,14 +1569,7 @@ function App() {
                     </div>
                 </div>
 
-                {/* Study Country */}
-                <div className="col-md-6">
-                    <div className="card shadow-sm p-3">
-                        <label className="fw-bold">Upload Study Country & Site</label>
-                        <input className="form-control" type="file" accept=".csv,.xlsx,.xls" onChange={handleStudyCountry} />
-                    </div>
-                </div>
-
+             
                 {/* Schedule Milestone */}
                 <div className="col-md-6">
                     <div className="card shadow-sm p-3">
@@ -1249,13 +1586,8 @@ function App() {
                     </div>
                 </div>
 
-                {/* Timesheet */}
-                <div className="col-md-6">
-                    <div className="card shadow-sm p-3">
-                        <label className="fw-bold">Upload Timesheet File</label>
-                        <input className="form-control" type="file" accept=".xlsx,.xls,.csv" onChange={handleTimeSheet} />
-                    </div>
-                </div>
+             
+             
                 <button className="btn btn-warning" onClick={applyConductEndFromLTFUStart}>
                     Fix Conduct End Date
                 </button>

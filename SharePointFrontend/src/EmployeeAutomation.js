@@ -204,7 +204,7 @@ function EmployeeAutomation() {
       "Position Status": adpEmp["Position Status"] || "",
       "Hire/Rehire Date": parseDateSafe(adpEmp["Hire/Rehire Date"]),
       "Job Function Description": adpEmp["Job Function Description"] || "",
-      "Custom 3": rmEmp["Billable or Non-Billable or Partially Billable"] || "",
+      "Billable or Non-Billable": rmEmp["Billable or Non-Billable or Partially Billable"] || "",
       "Custom 4": "",
       "Custom 5": "",
       "Active": "Yes"
@@ -233,7 +233,7 @@ function EmployeeAutomation() {
       "Position Status": rmEmp["Position Status"] || "",
       "Hire/Rehire Date": parseDateSafe(rmEmp["Hire/Rehire Date"]),
       "Job Function Description": rmEmp["Job Function Description"] || "",
-      "Custom 3": rmEmp["Billable or Non-Billable or Partially Billable"] || "",
+      "Billable or Non-Billable": rmEmp["Billable or Non-Billable or Partially Billable"] || "",
       "Custom 4": rmEmp["Custom 4"] || "",
       "Custom 5": rmEmp["Custom 5"] || "",
       "Active": activeValue
@@ -429,32 +429,56 @@ function EmployeeAutomation() {
     alert(`⚠️ ${removedCount} employees removed from processed file.`);
   };
 
-  // Export Employee File
-  const exportNewFile = () => {
-    if (!processedEmployees.length) {
-      alert("No data to export! Please generate the file first.");
-      return;
-    }
+  
 
-    const exportData = processedEmployees.map(emp => {
-      const { _matched, _source, _isNew, ...rest } = emp;
-      return rest;
-    });
+// Export Employee File as CSV
+const exportNewFile = () => {
+  if (!processedEmployees.length) {
+    alert("No data to export! Please generate the file first.");
+    return;
+  }
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const exportData = processedEmployees.map(emp => {
+    const { _matched, _source, _isNew, ...rest } = emp;
+    return rest;
+  });
 
-    for (let cell in worksheet) {
-      if (worksheet[cell]?.v instanceof Date) {
-        worksheet[cell].t = "d";
-        worksheet[cell].z = "dd-mm-yyyy";  // your required format
-      }
-    }
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "EmployeeFile");
+  // Convert processed employee data to CSV
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const csv = XLSX.utils.sheet_to_csv(worksheet);
 
-    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'EmployeeFile_Processed.xlsx');
-  };
+  // Download CSV file
+  saveAs(
+    new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+    "EmployeeFile_Processed.csv"
+  );
+};
+
+  // const exportNewFile = () => {
+  //   if (!processedEmployees.length) {
+  //     alert("No data to export! Please generate the file first.");
+  //     return;
+  //   }
+
+  //   const exportData = processedEmployees.map(emp => {
+  //     const { _matched, _source, _isNew, ...rest } = emp;
+  //     return rest;
+  //   });
+
+  //   const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+  //   for (let cell in worksheet) {
+  //     if (worksheet[cell]?.v instanceof Date) {
+  //       worksheet[cell].t = "d";
+  //       worksheet[cell].z = "dd-mm-yyyy";  // your required format
+  //     }
+  //   }
+  //   const workbook = XLSX.utils.book_new();
+  //   XLSX.utils.book_append_sheet(workbook, worksheet, "EmployeeFile");
+
+  //   const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  //   saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'EmployeeFile_Processed.xlsx');
+  // };
 
   // Export Comparison Report
   const exportComparisonReport = () => {
