@@ -207,26 +207,47 @@ function App() {
             const roundToMonthStart = (dateString) => {
                 if (!dateString) return "";
 
-                const [year, month] = dateString.split("-").map(Number);
+                const [year, month, day] = dateString.split("-").map(Number);
 
-                if (!year || !month) return "";
+                if (!year || !month || !day) return "";
 
-                return `${year}-${String(month).padStart(2, "0")}-01`;
+                if (day <= 15) {
+                    // 1st of the same month
+                    return `${year}-${String(month).padStart(2, "0")}-01`;
+                }
+
+                // 1st of the next month
+                const nextMonth = new Date(year, month, 1);
+
+                return `${nextMonth.getFullYear()}-${String(
+                    nextMonth.getMonth() + 1
+                ).padStart(2, "0")}-01`;
             };
 
             const roundToMonthEnd = (dateString) => {
                 if (!dateString) return "";
 
-                const [year, month] = dateString.split("-").map(Number);
+                const [year, month, day] = dateString.split("-").map(Number);
 
-                if (!year || !month) return "";
+                if (!year || !month || !day) return "";
 
-                // Day 0 of next month gives the last day of current month
+                if (day <= 15) {
+                    // Last day of previous month
+                    const previousMonth = new Date(year, month - 1, 0);
+
+                    return `${previousMonth.getFullYear()}-${String(
+                        previousMonth.getMonth() + 1
+                    ).padStart(2, "0")}-${String(
+                        previousMonth.getDate()
+                    ).padStart(2, "0")}`;
+                }
+
+                // Last day of same month
                 const lastDay = new Date(year, month, 0).getDate();
 
                 return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
             };
-           
+
 
             // ============================================================
             // START DATE LOGIC FOR STARTUP AND ALL
@@ -1329,25 +1350,50 @@ function App() {
             const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
             // Helper: parse Excel date into yyyy-mm-dd
+            // Helper: parse Excel date without timezone shifting
             const parseExcelDate = (val) => {
                 if (!val) return "";
+
+                // Excel serial number
                 if (typeof val === "number") {
                     const parsed = XLSX.SSF.parse_date_code(val);
+
                     if (parsed) {
-                        const dateStr = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d))
-                            .toISOString()
-                            .split("T")[0];
-                        return dateStr;
+                        return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
                     }
                 }
-                if (val instanceof Date) {
-                    return val.toISOString().split("T")[0];
+
+                // JavaScript Date object
+                if (val instanceof Date && !isNaN(val.getTime())) {
+                    return `${val.getFullYear()}-${String(val.getMonth() + 1).padStart(2, "0")}-${String(val.getDate()).padStart(2, "0")}`;
                 }
-                const dt = new Date(val);
-                if (!isNaN(dt)) {
-                    return dt.toISOString().split("T")[0];
+
+                // String date
+                if (typeof val === "string") {
+                    const trimmed = val.trim();
+
+                    if (!trimmed) return "";
+
+                    // If already yyyy-mm-dd
+                    const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+                    if (isoMatch) {
+                        const [, year, month, day] = isoMatch;
+
+                        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    }
+
+                    // Try normal date parsing
+                    const dt = new Date(trimmed);
+
+                    if (!isNaN(dt.getTime())) {
+                        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+                    }
+
+                    return trimmed;
                 }
-                return val.toString().trim();
+
+                return "";
             };
 
             // Build LTFU map
@@ -1412,8 +1458,8 @@ function App() {
     };
 
 
-  
-   
+
+
     const triggerActiveFiles = async () => {
         try {
             await fetch("http://localhost:3003/api/fetch-files", {
@@ -1521,7 +1567,7 @@ function App() {
                         Timesheet Automation
                     </button>
 
-                  
+
 
                 </div>
             </div>
@@ -1569,7 +1615,7 @@ function App() {
                     </div>
                 </div>
 
-             
+
                 {/* Schedule Milestone */}
                 <div className="col-md-6">
                     <div className="card shadow-sm p-3">
@@ -1586,8 +1632,8 @@ function App() {
                     </div>
                 </div>
 
-             
-             
+
+
                 <button className="btn btn-warning" onClick={applyConductEndFromLTFUStart}>
                     Fix Conduct End Date
                 </button>
