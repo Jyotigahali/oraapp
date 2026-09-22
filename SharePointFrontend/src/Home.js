@@ -229,25 +229,18 @@ function App() {
 
                 const [year, month, day] = dateString.split("-").map(Number);
 
-                if (!year || !month || !day) return "";
-
+                // On or before 15th → beginning of current month
                 if (day <= 15) {
-                    // Last day of previous month
-                    const previousMonth = new Date(year, month - 1, 0);
-
-                    return `${previousMonth.getFullYear()}-${String(
-                        previousMonth.getMonth() + 1
-                    ).padStart(2, "0")}-${String(
-                        previousMonth.getDate()
-                    ).padStart(2, "0")}`;
+                    return `${year}-${String(month).padStart(2, "0")}-01`;
                 }
 
-                // Last day of same month
-                const lastDay = new Date(year, month, 0).getDate();
+                // After 15th → beginning of next month
+                const nextMonth = new Date(year, month, 1);
 
-                return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+                return `${nextMonth.getFullYear()}-${String(
+                    nextMonth.getMonth() + 1
+                ).padStart(2, "0")}-01`;
             };
-
 
             // ============================================================
             // START DATE LOGIC FOR STARTUP AND ALL
